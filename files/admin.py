@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion
 from django.utils.html import format_html
 from django.utils import timezone
 from django.urls import reverse
@@ -78,10 +78,11 @@ class FileItemCategoryFilter(admin.SimpleListFilter):
 
 @admin.register(FileItem)
 class FileItemAdmin(admin.ModelAdmin):
-    list_display = ('title', 'user', 'folder', 'category_display', 'file_size_display', 'is_favorite', 'is_public', 'created_at')
-    list_filter = ('category', 'is_favorite', 'is_public', 'created_at', 'user')
+    list_display = ('title', 'user', 'folder', 'category_display', 'file_size_display', 'is_favorite', 'is_public', 'version_count', 'in_trash', 'created_at')
+    list_filter = ('category', 'is_favorite', 'is_public', 'created_at', 'user', 'deleted_at')
     search_fields = ('title', 'description', 'user__username')
-    readonly_fields = ('file_size', 'created_at', 'updated_at', 'file_preview')
+    readonly_fields = ('file_size', 'created_at', 'updated_at', 'file_preview', 'version_history')
+    actions = ['move_to_trash', 'restore_from_trash', 'permanent_delete']
     fieldsets = (
         (None, {
             'fields': ('title', 'description', 'user', 'file')
@@ -93,7 +94,11 @@ class FileItemAdmin(admin.ModelAdmin):
             'fields': ('file_size', 'folder')
         }),
         ('Options', {
-            'fields': ('is_favorite', 'is_public')
+            'fields': ('is_favorite', 'is_public', 'deleted_at')
+        }),
+        ('Versions', {
+            'fields': ('version_history',),
+            'classes': ('collapse',)
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -123,6 +128,97 @@ class FileItemAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" style="max-height: 200px; max-width: 200px;" />', obj.file.url)
         return format_html('<i class="fas fa-file text-primary-500 text-4xl"></i>')
     file_preview.short_description = "Preview"
+    
+    def version_count(self, obj):
+        return obj.get_version_count()
+    version_count.short_description = "Versions"
+    
+    def in_trash(self, obj):
+        return obj.is_in_trash()
+    in_trash.boolean = True
+    in_trash.short_description = "In Trash"
+    
+    def version_history(self, obj):
+        versions = obj.versions.all()
+        if not versions:
+            return "No versions available"
+        
+        html = '<table style="width:100%; border-collapse: collapse;">'
+        html += '<tr><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Version</th>'
+        html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Created</th>'
+        html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Size</th>'
+        html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">User</th>'
+        html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Current</th></tr>'
+        
+        for version in versions:
+            html += f'<tr style="background-color: {"#f2f2f2" if version.is_current else "white"}">'
+            html += f'<td style="border: 1px solid #ddd; padding: 8px;">v{version.version_number}</td>'
+            html += f'<td style="border: 1px solid #ddd; padding: 8px;">{version.created_at.strftime("%Y-%m-%d %H:%M")}</td>'
+            html += f'<td style="border: 1px solid #ddd; padding: 8px;">{version.get_readable_file_size()}</td>'
+            html += f'<td style="border: 1px solid #ddd; padding: 8px;">{version.created_by.username if version.created_by else "Unknown"}</td>'
+            html += f'<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">{"✓" if version.is_current else "✗"}</td>'
+            html += '</tr>'
+        
+        html += '</table>'
+        return format_html(html)
+    version_history.short_description = "Version History"
+    
+    def move_to_trash(self, request, queryset):
+        for obj in queryset:
+            obj.soft_delete()
+        count = queryset.count()
+        self.message_user(request, f"{count} file{'s' if count > 1 else ''} moved to trash.")
+    move_to_trash.short_description = "Move selected files to trash"
+    
+    def restore_from_trash(self, request, queryset):
+        count = 0
+        for obj in queryset:
+            if obj.is_in_trash():
+                obj.restore()
+                count += 1
+        self.message_user(request, f"{count} file{'s' if count > 1 else ''} restored from trash.")
+    restore_from_trash.short_description = "Restore selected files from trash"
+    
+    def permanent_delete(self, request, queryset):
+        count = 0
+        for obj in queryset:
+            if obj.is_in_trash():
+                # Update user storage before deleting
+                if hasattr(obj.user, 'profile'):
+                    profile = obj.user.profile
+                    profile.storage_used = max(0, profile.storage_used - obj.file_size)
+                    profile.save()
+                obj.delete()
+                count += 1
+        self.message_user(request, f"{count} file{'s' if count > 1 else ''} permanently deleted.")
+    permanent_delete.short_description = "Permanently delete selected files (from trash only)"
+
+@admin.register(FileVersion)
+class FileVersionAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'file', 'version_number', 'file_size_display', 'is_current', 'created_at', 'created_by')
+    list_filter = ('is_current', 'created_at', 'file__user')
+    search_fields = ('file__title', 'created_by__username')
+    readonly_fields = ('file', 'version_file', 'version_number', 'version_size', 'created_at', 'created_by')
+    actions = ['set_as_current']
+    
+    def file_size_display(self, obj):
+        return obj.get_readable_file_size()
+    file_size_display.short_description = "Size"
+    
+    def set_as_current(self, request, queryset):
+        if queryset.count() > 1:
+            self.message_user(request, "Please select only one version to set as current.", level='error')
+            return
+            
+        version = queryset.first()
+        if version:
+            # Set all versions of this file to not current
+            FileVersion.objects.filter(file=version.file).update(is_current=False)
+            # Set selected version as current
+            version.is_current = True
+            version.save()
+            self.message_user(request, f"Version {version.version_number} set as current for file '{version.file.title}'.")
+    set_as_current.short_description = "Set as current version"
 
 @admin.register(SharedFile)
 class SharedFileAdmin(admin.ModelAdmin):

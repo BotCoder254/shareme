@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Restore File - CloudVault{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-6">
+            <div class="text-center mb-6">
+                <i class="fas fa-trash-restore text-indigo-500 text-4xl mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800">Restore File?</h2>
+                <p class="text-gray-600 mt-2">
+                    Are you sure you want to restore <strong>{{ file.title }}</strong> from the trash?
+                </p>
+            </div>
+            
+            <div class="flex justify-center space-x-4">
+                <a href="{% url 'files:file_list' %}?trash=1" class="btn btn-secondary">
+                    <i class="fas fa-times mr-2"></i> Cancel
+                </a>
+                <form method="POST" action="{% url 'files:file_restore' file_id=file.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-trash-restore mr-2"></i> Restore File
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

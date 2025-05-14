@@ -4,11 +4,12 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion
 from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm
 import os
 from django.urls import reverse
 from django.utils import timezone
+from datetime import timedelta
 
 @login_required
 def file_list(request):
@@ -16,8 +17,14 @@ def file_list(request):
     category_id = request.GET.get('category')
     favorite = request.GET.get('favorite')
     query = request.GET.get('q')
+    trash = request.GET.get('trash')
     
-    files = FileItem.objects.filter(user=request.user)
+    if trash:
+        # Show only files in trash
+        files = FileItem.objects.filter(user=request.user, deleted_at__isnull=False)
+    else:
+        # Show only files not in trash
+        files = FileItem.objects.filter(user=request.user, deleted_at__isnull=True)
     
     # Apply filters
     if category_id:
@@ -40,8 +47,12 @@ def file_list(request):
         'categories': categories,
         'current_category': category_id,
         'is_favorite': favorite == '1',
+        'is_trash': trash == '1',
         'query': query,
     }
+    
+    if trash:
+        return render(request, 'files/trash.html', context)
     
     return render(request, 'files/file_list.html', context)
 
@@ -51,9 +62,16 @@ def file_detail(request, file_id):
     file = get_object_or_404(FileItem, id=file_id, user=request.user)
     shared_with = SharedFile.objects.filter(file=file)
     
+    # Get file versions
+    versions = file.versions.all().order_by('-version_number')
+    current_version = file.get_current_version()
+    
     context = {
         'file': file,
         'shared_with': shared_with,
+        'versions': versions,
+        'current_version': current_version,
+        'version_count': versions.count(),
     }
     
     return render(request, 'files/file_detail.html', context)
@@ -82,7 +100,40 @@ def file_upload(request):
                     'current_folder': request.POST.get('folder', None),
                     'folders': folders,
                 })
+            
+            # Check if this is a new version of an existing file
+            existing_file_id = request.POST.get('existing_file')
+            if existing_file_id:
+                try:
+                    # Get the existing file
+                    existing_file = FileItem.objects.get(id=existing_file_id, user=request.user)
+                    
+                    # Create a new version
+                    version = FileVersion.create_version(
+                        file_item=existing_file,
+                        version_file=request.FILES['file'],
+                        user=request.user
+                    )
+                    
+                    # Update the existing file's information
+                    existing_file.file_size = file_size
+                    existing_file.title = form.cleaned_data['title']
+                    existing_file.description = form.cleaned_data['description']
+                    existing_file.category = form.cleaned_data['category']
+                    existing_file.is_public = form.cleaned_data['is_public']
+                    existing_file.updated_at = timezone.now()
+                    existing_file.save()
+                    
+                    # Update user's storage used
+                    profile.storage_used += file_size
+                    profile.save()
+                    
+                    messages.success(request, f"New version (v{version.version_number}) of '{existing_file.title}' uploaded successfully!")
+                    return redirect('files:file_detail', file_id=existing_file.id)
                 
+                except FileItem.DoesNotExist:
+                    messages.error(request, "The file you're trying to update doesn't exist or you don't have permission to update it.")
+            
             # User has enough space, create the file
             file_instance = form.save(commit=False)
             file_instance.user = request.user
@@ -99,6 +150,13 @@ def file_upload(request):
                 
             file_instance.save()
             
+            # Create the initial version
+            FileVersion.create_version(
+                file_item=file_instance,
+                version_file=request.FILES['file'],
+                user=request.user
+            )
+            
             # Update user's storage used
             profile.storage_used += file_instance.file_size
             profile.save()
@@ -112,11 +170,27 @@ def file_upload(request):
     else:
         form = FileUploadForm()
         folder_id = request.GET.get('folder')
+        existing_file_id = request.GET.get('existing_file')
         current_folder = None
+        existing_file = None
+        
         if folder_id:
             try:
                 current_folder = Folder.objects.get(id=folder_id, user=request.user)
             except Folder.DoesNotExist:
+                pass
+        
+        if existing_file_id:
+            try:
+                existing_file = FileItem.objects.get(id=existing_file_id, user=request.user)
+                # Pre-fill form with existing file data
+                form = FileUploadForm(initial={
+                    'title': existing_file.title,
+                    'description': existing_file.description,
+                    'category': existing_file.category,
+                    'is_public': existing_file.is_public
+                })
+            except FileItem.DoesNotExist:
                 pass
     
     context = {
@@ -124,6 +198,7 @@ def file_upload(request):
         'categories': FileCategory.objects.all(),
         'current_folder': current_folder,
         'folders': folders,
+        'existing_file': existing_file,
     }
     
     return render(request, 'files/file_upload.html', context)
@@ -133,31 +208,90 @@ def file_delete(request, file_id):
     """View to delete a file"""
     file = get_object_or_404(FileItem, id=file_id, user=request.user)
     
+    # Check if file is already in trash
+    permanent = request.GET.get('permanent') == '1' and file.is_in_trash()
+    
     if request.method == 'POST':
-        # Capture file size before deletion
-        file_size = file.file_size
-        
-        # Delete file
-        file.delete()
-        
-        # Remove file size from user's storage
-        profile = request.user.profile
-        profile.storage_used = max(0, profile.storage_used - file_size)  # Prevent negative values
-        profile.save()
-        
-        messages.success(request, "File deleted successfully!")
+        if permanent:
+            # Capture file size before deletion
+            file_size = file.file_size
+            
+            # Delete file
+            file.delete()
+            
+            # Remove file size from user's storage
+            profile = request.user.profile
+            profile.storage_used = max(0, profile.storage_used - file_size)  # Prevent negative values
+            profile.save()
+            
+            messages.success(request, "File permanently deleted!")
+        else:
+            # Move to trash
+            file.soft_delete()
+            messages.success(request, "File moved to trash!")
         
         # Check if redirecting to a folder
         folder_id = request.GET.get('folder')
         if folder_id:
             return redirect(f'files:file_list?folder={folder_id}')
+        
+        if request.GET.get('trash') == '1':
+            return redirect('files:file_list?trash=1')
+            
         return redirect('files:file_list')
+    
+    context = {
+        'file': file,
+        'permanent': permanent,
+    }
+    
+    return render(request, 'files/file_delete.html', context)
+
+@login_required
+def file_restore(request, file_id):
+    """View to restore a file from trash"""
+    file = get_object_or_404(FileItem, id=file_id, user=request.user, deleted_at__isnull=False)
+    
+    if request.method == 'POST':
+        file.restore()
+        messages.success(request, "File restored from trash!")
+        return redirect('files:file_list?trash=1')
     
     context = {
         'file': file,
     }
     
-    return render(request, 'files/file_delete.html', context)
+    return render(request, 'files/file_restore.html', context)
+
+@login_required
+def empty_trash(request):
+    """View to empty trash (permanently delete all files in trash)"""
+    trash_files = FileItem.objects.filter(user=request.user, deleted_at__isnull=False)
+    trash_count = trash_files.count()
+    
+    if request.method == 'POST':
+        # Calculate total size to free up
+        total_size = 0
+        for file in trash_files:
+            total_size += file.file_size
+        
+        # Delete all files in trash
+        trash_files.delete()
+        
+        # Update user's storage used
+        if total_size > 0:
+            profile = request.user.profile
+            profile.storage_used = max(0, profile.storage_used - total_size)
+            profile.save()
+        
+        messages.success(request, f"Trash emptied! {trash_count} file{'s' if trash_count != 1 else ''} permanently deleted.")
+        return redirect('files:file_list')
+    
+    context = {
+        'trash_count': trash_count,
+    }
+    
+    return render(request, 'files/empty_trash.html', context)
 
 @login_required
 def file_toggle_favorite(request, file_id):
@@ -623,3 +757,81 @@ def folder_delete(request, folder_id):
     }
     
     return render(request, 'files/folder_delete.html', context)
+
+@login_required
+def file_version_set_current(request, file_id, version_id):
+    """Set a specific version as the current version"""
+    file = get_object_or_404(FileItem, id=file_id, user=request.user)
+    version = get_object_or_404(FileVersion, id=version_id, file=file)
+    
+    if request.method == 'POST':
+        # Update all versions to not current
+        file.versions.update(is_current=False)
+        
+        # Set this version as current
+        version.is_current = True
+        version.save()
+        
+        messages.success(request, f"Version {version.version_number} is now the current version.")
+        return redirect('files:file_detail', file_id=file.id)
+    
+    context = {
+        'file': file,
+        'version': version,
+    }
+    
+    return render(request, 'files/file_version_set_current.html', context)
+
+@login_required
+def file_version_download(request, file_id, version_id):
+    """Download a specific version of a file"""
+    file = get_object_or_404(FileItem, id=file_id, user=request.user)
+    version = get_object_or_404(FileVersion, id=version_id, file=file)
+    
+    file_path = version.version_file.path
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as fh:
+            response = HttpResponse(fh.read(), content_type="application/octet-stream")
+            response['Content-Disposition'] = f'attachment; filename="{file.title}_v{version.version_number}.{file.extension().lower()}"'
+            return response
+    
+    messages.error(request, "File version not found.")
+    return redirect('files:file_detail', file_id=file.id)
+
+@login_required
+def file_version_delete(request, file_id, version_id):
+    """Delete a specific version of a file"""
+    file = get_object_or_404(FileItem, id=file_id, user=request.user)
+    version = get_object_or_404(FileVersion, id=version_id, file=file)
+    
+    # Don't allow deleting the only version
+    if file.versions.count() <= 1:
+        messages.error(request, "Cannot delete the only version of the file.")
+        return redirect('files:file_detail', file_id=file.id)
+    
+    # Don't allow deleting the current version
+    if version.is_current:
+        messages.error(request, "Cannot delete the current version. Please set another version as current first.")
+        return redirect('files:file_detail', file_id=file.id)
+    
+    if request.method == 'POST':
+        # Capture version size before deletion
+        version_size = version.version_size
+        
+        # Delete version
+        version.delete()
+        
+        # Update user's storage used
+        profile = request.user.profile
+        profile.storage_used = max(0, profile.storage_used - version_size)
+        profile.save()
+        
+        messages.success(request, f"Version {version.version_number} deleted successfully!")
+        return redirect('files:file_detail', file_id=file.id)
+    
+    context = {
+        'file': file,
+        'version': version,
+    }
+    
+    return render(request, 'files/file_version_delete.html', context)

@@ -1,39 +1,51 @@
 {% extends 'base.html' %}
 
-{% block title %}Delete File - CloudVault{% endblock %}
+{% block title %}{% if permanent %}Permanently Delete{% else %}Move to Trash{% endif %} - CloudVault{% endblock %}
 
 {% block content %}
-<div class="bg-gray-100 min-h-[80vh] flex items-center justify-center py-12">
-    <div class="max-w-md w-full bg-white shadow rounded-lg overflow-hidden fade-in">
-        <div class="px-6 py-5 border-b border-gray-200">
-            <h1 class="text-xl font-bold text-gray-900">Delete File</h1>
-        </div>
-        
-        <div class="px-6 py-6">
-            <div class="flex items-center justify-center mb-6">
-                <div class="h-24 w-24 bg-red-100 rounded-full flex items-center justify-center">
-                    <i class="fas fa-exclamation-triangle text-red-600 text-4xl"></i>
-                </div>
-            </div>
-            
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-md mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-6">
             <div class="text-center mb-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-2">Are you sure?</h2>
-                <p class="text-gray-500">
-                    You are about to delete <strong>"{{ file.title }}"</strong>. 
-                    This action cannot be undone, and all data associated with this file will be permanently removed.
+                <i class="fas {% if permanent %}fa-trash-alt text-red-500{% else %}fa-trash text-yellow-500{% endif %} text-4xl mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    {% if permanent %}
+                    Permanently Delete File?
+                    {% else %}
+                    Move File to Trash?
+                    {% endif %}
+                </h2>
+                <p class="text-gray-600 mt-2">
+                    {% if permanent %}
+                    Are you sure you want to permanently delete <strong>{{ file.title }}</strong>?
+                    {% else %}
+                    Are you sure you want to move <strong>{{ file.title }}</strong> to trash?
+                    {% endif %}
                 </p>
+                {% if permanent %}
+                <p class="text-red-500 text-sm mt-2">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> This action cannot be undone.
+                </p>
+                {% else %}
+                <p class="text-gray-500 text-sm mt-2">
+                    <i class="fas fa-info-circle mr-1"></i> You can restore the file from the trash later.
+                </p>
+                {% endif %}
             </div>
             
-            <div class="flex items-center justify-center border-t border-gray-200 pt-6">
-                <a href="{% url 'files:file_detail' file.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 mr-3">
-                    <i class="fas fa-times mr-2"></i>
-                    Cancel
+            <div class="flex justify-center space-x-4">
+                {% if permanent %}
+                <a href="{% url 'files:file_list' %}?trash=1" class="btn btn-secondary">
+                {% else %}
+                <a href="{{ request.META.HTTP_REFERER|default:'/' }}" class="btn btn-secondary">
+                {% endif %}
+                    <i class="fas fa-times mr-2"></i> Cancel
                 </a>
-                <form method="post" action="{% url 'files:file_delete' file.id %}">
+                <form method="POST" action="{% url 'files:file_delete' file_id=file.id %}{% if permanent %}?permanent=1{% endif %}">
                     {% csrf_token %}
-                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                        <i class="fas fa-trash-alt mr-2"></i>
-                        Delete Permanently
+                    <button type="submit" class="btn {% if permanent %}btn-danger{% else %}btn-warning{% endif %}">
+                        <i class="fas {% if permanent %}fa-trash-alt{% else %}fa-trash{% endif %} mr-2"></i> 
+                        {% if permanent %}Permanently Delete{% else %}Move to Trash{% endif %}
                     </button>
                 </form>
             </div>
