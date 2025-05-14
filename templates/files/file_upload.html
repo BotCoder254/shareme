@@ -270,12 +270,11 @@
                                      data-storage-used="{{ user.profile.storage_used }}"
                                      data-storage-limit="{{ user.profile.storage_limit }}"
                                      data-limit-enforced="{% if user.profile.storage_limit_enforced %}true{% else %}false{% endif %}"
-                                     style="width: {{ user.profile.get_storage_usage_percentage }}%;" 
-                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center 
-                                     {% if user.profile.get_storage_usage_percentage > 90 %}bg-red-500{% elif user.profile.get_storage_usage_percentage > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}">
+                                     style="width: {{ user.profile.get_storage_usage_percentage }}%" 
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if user.profile.get_storage_usage_percentage > 90 %}bg-red-500{% elif user.profile.get_storage_usage_percentage > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}">
                                 </div>
                                 <!-- Projected Additional Usage (initially hidden) -->
-                                <div id="progressBarProjected" style="width: 0%;" 
+                                <div id="progressBarProjected" style="width: 0%" 
                                      class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-400">
                                 </div>
                             </div>

@@ -50,7 +50,7 @@ class CustomUserAdmin(UserAdmin):
             color = 'red'
         return format_html('<div style="width:100px; height:10px; background-color:#f2f2f2; border-radius:5px;">'
                           '<div style="width:{}%; height:10px; background-color:{}; border-radius:5px;"></div></div>'
-                          '<span style="margin-left:5px;">{:.1f}%</span>', percentage, color, percentage)
+                          '<span style="margin-left:5px;">{}</span>', percentage, color, f"{percentage:.1f}%")
     get_storage_percentage.short_description = 'Usage'
     
     def reset_storage_usage(self, request, queryset):

@@ -23,9 +23,7 @@
         </h3>
         <div class="overflow-hidden h-2 mb-2 text-xs flex rounded bg-gray-200">
             {% with usage_percent=user.profile.get_storage_usage_percentage %}
-            <div class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if usage_percent > 90 %}bg-red-500{% elif usage_percent > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}" 
-                 style="width: {{ usage_percent }}%;">
-            </div>
+            <div class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if usage_percent > 90 %}bg-red-500{% elif usage_percent > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}" style="width: {{ usage_percent }}%"></div>
             {% endwith %}
         </div>
         <div class="flex justify-between text-xs">
@@ -38,106 +36,224 @@
     </div>
     
     <!-- Navigation Links -->
-    <nav class="space-y-1 mb-6">
-        <a href="{% url 'core:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-            <i class="fas fa-tachometer-alt mr-3 text-gray-400 group-hover:text-gray-500"></i>
-            Dashboard
-        </a>
-        
-        <a href="{% url 'files:file_list' %}" class="{% if request.resolver_match.url_name == 'file_list' or request.resolver_match.url_name == 'folder_contents' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-            <i class="fas fa-folder mr-3 text-gray-400 group-hover:text-gray-500"></i>
-            My Files
-        </a>
-        
-        <a href="{% url 'files:file_list' %}?favorite=1" class="{% if is_favorite %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-            <i class="fas fa-heart mr-3 text-gray-400 group-hover:text-gray-500"></i>
-            Favorites
-        </a>
-        
-        <a href="{% url 'files:shared_files' %}" class="{% if request.resolver_match.url_name == 'shared_files' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-            <i class="fas fa-share-alt mr-3 text-gray-400 group-hover:text-gray-500"></i>
-            Shared with Me
-        </a>
-        
-        <div class="space-y-1 mt-2">
-            <a href="{% url 'files:file_upload' %}" class="{% if request.resolver_match.url_name == 'file_upload' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-                <i class="fas fa-upload mr-3 text-gray-400 group-hover:text-gray-500"></i>
-                Upload Files
-            </a>
-            <a href="{% url 'files:create_folder' %}" class="{% if request.resolver_match.url_name == 'create_folder' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-                <i class="fas fa-folder-plus mr-3 text-gray-400 group-hover:text-gray-500"></i>
-                Create Folder
-            </a>
+    <div class=" rounded-lg  overflow-hidden h-full">
+        <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900 flex items-center">
+                <i class="fas fa-compass mr-2 text-primary-500"></i>
+                Navigation
+            </h3>
         </div>
+        
+        <nav class="pt-3 space-y-1">
+            <a href="{% url 'core:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                <i class="fas fa-tachometer-alt mr-3 text-gray-400 group-hover:text-gray-500"></i>
+                Dashboard
+            </a>
+            
+            <a href="{% url 'files:file_list' %}" class="{% if request.resolver_match.url_name == 'file_list' or request.resolver_match.url_name == 'folder_contents' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                <i class="fas fa-folder mr-3 text-yellow-400 group-hover:text-yellow-500"></i>
+                My Files
+            </a>
+            
+            <a href="{% url 'files:file_list' %}?favorite=1" class="{% if is_favorite %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                <i class="fas fa-heart mr-3 text-red-400 group-hover:text-red-500"></i>
+                Favorites
+            </a>
+            
+            <a href="{% url 'files:shared_files' %}" class="{% if request.resolver_match.url_name == 'shared_files' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                <i class="fas fa-share-alt mr-3 text-blue-400 group-hover:text-blue-500"></i>
+                Shared with Me
+            </a>
+            
+            <div class="space-y-1 mt-2">
+                <a href="{% url 'files:file_upload' %}" class="{% if request.resolver_match.url_name == 'file_upload' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                    <i class="fas fa-upload mr-3 text-green-400 group-hover:text-green-500"></i>
+                    Upload Files
+                </a>
+                <a href="{% url 'files:create_folder' %}" class="{% if request.resolver_match.url_name == 'create_folder' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                    <i class="fas fa-folder-plus mr-3 text-yellow-400 group-hover:text-yellow-500"></i>
+                    Create Folder
+                </a>
+            </div>
 
-        <!-- My Folders Section -->
-        <div class="mt-6">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                My Folders
-            </h3>
-            <div class="space-y-1">
-                {% with user_folders=request.user.folders.all|slice:":5" %}
-                {% if user_folders %}
-                    {% for folder in user_folders %}
-                        <a href="{% url 'files:folder_contents' folder.id %}" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-                            <i class="fas fa-folder mr-3 text-gray-400 group-hover:text-gray-500"></i>
-                            {{ folder.name }}
-                        </a>
-                    {% endfor %}
-                    
-                    {% if request.user.folders.all.count > 5 %}
-                        <a href="{% url 'files:file_list' %}" class="text-xs text-primary-600 hover:text-primary-800 px-3 py-1">
-                            View all folders ({{ request.user.folders.all.count }})
-                        </a>
-                    {% endif %}
-                {% else %}
-                    <div class="px-3 py-2 text-sm text-gray-500">
-                        No folders created yet
+            <!-- My Folders Section with Collapsible Feature -->
+            <div class="mt-6">
+                <button type="button" id="toggleFolders" class="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-700 focus:outline-none">
+                    <div class="flex items-center">
+                        <i class="fas fa-folder-tree mr-2"></i>
+                        My Folders
                     </div>
-                {% endif %}
-                {% endwith %}
+                    <i class="fas fa-chevron-down transition-transform duration-200" id="folderIcon"></i>
+                </button>
+                <div id="foldersSection" class="space-y-1">
+                    {% with user_folders=request.user.folders.all|slice:":5" %}
+                    {% if user_folders %}
+                        {% for folder in user_folders %}
+                            <a href="{% url 'files:folder_contents' folder.id %}" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <i class="fas fa-folder mr-3 text-yellow-400 group-hover:text-yellow-500"></i>
+                                {{ folder.name }}
+                            </a>
+                        {% endfor %}
+                        
+                        {% if request.user.folders.all.count > 5 %}
+                            <a href="{% url 'files:file_list' %}" class="text-xs text-primary-600 hover:text-primary-800 px-3 py-1 flex items-center">
+                                <i class="fas fa-chevron-right mr-1"></i>
+                                View all folders ({{ request.user.folders.all.count }})
+                            </a>
+                        {% endif %}
+                    {% else %}
+                        <div class="px-3 py-2 text-sm text-gray-500 flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-blue-400"></i>
+                            No folders created yet
+                        </div>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            
+            <!-- Recent Files Section -->
+            <div class="mt-6">
+                <button type="button" id="toggleRecentFiles" class="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-700 focus:outline-none">
+                    <div class="flex items-center">
+                        <i class="fas fa-clock mr-2"></i>
+                        Recent Files
+                    </div>
+                    <i class="fas fa-chevron-down transition-transform duration-200" id="recentFilesIcon"></i>
+                </button>
+                <div id="recentFilesSection" class="space-y-1">
+                    {% with recent_files=request.user.files.all|slice:":3" %}
+                    {% if recent_files %}
+                        {% for file in recent_files %}
+                            <a href="{% url 'files:file_detail' file.id %}" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md truncate">
+                                <i class="fas fa-file mr-3 text-primary-400 group-hover:text-primary-500"></i>
+                                {{ file.title }}
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="px-3 py-2 text-sm text-gray-500 flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-blue-400"></i>
+                            No files uploaded yet
+                        </div>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+        </nav>
+    
+        <!-- Categories Section -->
+        <div class="mt-6">
+            <button type="button" id="toggleCategories" class="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-700 focus:outline-none px-3">
+                <div class="flex items-center">
+                    <i class="fas fa-tags mr-2"></i>
+                    Categories
+                </div>
+                <i class="fas fa-chevron-down transition-transform duration-200" id="categoriesIcon"></i>
+            </button>
+            <nav id="categoriesSection" class="space-y-1">
+                {% for category in categories %}
+                <a href="{% url 'files:file_list' %}?category={{ category.id }}" class="{% if current_category == category.id|stringformat:'i' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                    <i class="fas fa-{{ category.icon }} mr-3 text-{{ category.color|default:'gray-400' }} group-hover:text-gray-500"></i>
+                    {{ category.name }}
+                    {% if category.file_count %}
+                    <span class="ml-auto bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full">{{ category.file_count }}</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </nav>
+        </div>
+        
+        <!-- Stats Section -->
+        <div class="mt-6">
+            <button type="button" id="toggleStats" class="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-700 focus:outline-none px-3">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-pie mr-2"></i>
+                    Stats
+                </div>
+                <i class="fas fa-chevron-down transition-transform duration-200" id="statsIcon"></i>
+            </button>
+            <div id="statsSection" class="px-3">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-500">Storage used</span>
+                    <span class="text-sm font-medium text-gray-900">{{ user.profile.get_storage_usage_percentage }}%</span>
+                </div>
+                <div class="overflow-hidden h-2 mb-2 text-xs flex rounded bg-gray-200">
+                    {% with usage_percent=user.profile.get_storage_usage_percentage %}
+                    <div class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if usage_percent > 90 %}bg-red-500{% elif usage_percent > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}" style="width: {{ usage_percent }}%"></div>
+                    {% endwith %}
+                </div>
+                <div class="text-xs text-gray-500 mt-2 flex items-center">
+                    <i class="fas fa-info-circle mr-1 text-blue-400"></i>
+                    {{ user.profile.get_readable_storage_used }} of {{ user.profile.get_readable_storage_limit }}
+                </div>
+                <div class="mt-4">
+                    <a href="{% url 'core:stats' %}" class="text-xs text-primary-600 hover:text-primary-800 flex items-center">
+                        <i class="fas fa-chart-bar mr-1"></i>
+                        View detailed stats
+                    </a>
+                </div>
             </div>
         </div>
         
-        <!-- Recent Files Section -->
-        <div class="mt-6">
-            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Recent Files
-            </h3>
-            <div class="space-y-1">
-                {% with recent_files=request.user.files.all|slice:":3" %}
-                {% if recent_files %}
-                    {% for file in recent_files %}
-                        <a href="{% url 'files:file_detail' file.id %}" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md truncate">
-                            <i class="fas fa-file mr-3 text-gray-400 group-hover:text-gray-500"></i>
-                            {{ file.title }}
-                        </a>
-                    {% endfor %}
-                {% else %}
-                    <div class="px-3 py-2 text-sm text-gray-500">
-                        No files uploaded yet
-                    </div>
-                {% endif %}
-                {% endwith %}
+        {% if user.is_staff %}
+        <!-- Admin Section -->
+        <div class="mt-6 mb-4">
+            <button type="button" id="toggleAdmin" class="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 hover:text-gray-700 focus:outline-none px-3">
+                <div class="flex items-center">
+                    <i class="fas fa-shield-alt mr-2"></i>
+                    Admin
+                </div>
+                <i class="fas fa-chevron-down transition-transform duration-200" id="adminIcon"></i>
+            </button>
+            <div id="adminSection" class="space-y-1">
+                <a href="/admin/" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                    <i class="fas fa-cog mr-3 text-gray-400 group-hover:text-gray-500"></i>
+                    Admin Panel
+                </a>
+                <a href="/admin/accounts/user/" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                    <i class="fas fa-users-cog mr-3 text-gray-400 group-hover:text-gray-500"></i>
+                    Manage Users
+                </a>
             </div>
         </div>
-    </nav>
-    
-    <!-- Categories Section -->
-    <div class="mt-6">
-        <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Categories
-        </h3>
-        <nav class="space-y-1">
-            {% for category in categories %}
-            <a href="{% url 'files:file_list' %}?category={{ category.id }}" class="{% if current_category == category.id|stringformat:'i' %}bg-primary-50 text-primary-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %} group flex items-center px-3 py-2 text-sm font-medium rounded-md">
-                <i class="fas fa-{{ category.icon }} mr-3 text-{{ category.color|default:'gray-400' }} group-hover:text-gray-500"></i>
-                {{ category.name }}
-                {% if category.file_count %}
-                <span class="ml-auto bg-gray-100 text-gray-600 text-xs font-semibold px-2 py-0.5 rounded-full">{{ category.file_count }}</span>
-                {% endif %}
-            </a>
-            {% endfor %}
-        </nav>
+        {% endif %}
     </div>
-</div> 
+</div>
+
+<!-- JavaScript for collapsible sections -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Setup toggle functionality for each section
+        setupToggle('toggleFolders', 'foldersSection', 'folderIcon');
+        setupToggle('toggleRecentFiles', 'recentFilesSection', 'recentFilesIcon');
+        setupToggle('toggleCategories', 'categoriesSection', 'categoriesIcon');
+        setupToggle('toggleStats', 'statsSection', 'statsIcon');
+        {% if user.is_staff %}
+        setupToggle('toggleAdmin', 'adminSection', 'adminIcon');
+        {% endif %}
+        
+        // Function to setup toggle functionality
+        function setupToggle(toggleId, sectionId, iconId) {
+            const toggleButton = document.getElementById(toggleId);
+            const section = document.getElementById(sectionId);
+            const icon = document.getElementById(iconId);
+            
+            // Load state from localStorage
+            const isCollapsed = localStorage.getItem(sectionId + '_collapsed') === 'true';
+            
+            // Initialize state
+            if (isCollapsed) {
+                section.classList.add('hidden');
+                icon.classList.add('transform', 'rotate-180');
+            }
+            
+            // Add click event
+            toggleButton.addEventListener('click', function() {
+                section.classList.toggle('hidden');
+                icon.classList.toggle('rotate-180');
+                
+                // Save state to localStorage
+                localStorage.setItem(sectionId + '_collapsed', section.classList.contains('hidden'));
+            });
+        }
+    });
+</script> 

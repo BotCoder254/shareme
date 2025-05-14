@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}System Statistics - CloudVault{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-[80vh]">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-3xl font-bold text-gray-900 fade-in">System Statistics</h1>
+                        <p class="mt-1 text-gray-500 fade-in">Overview of CloudVault Open Source usage and performance</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <a href="{% url 'core:dashboard' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-tachometer-alt mr-2"></i>
+                            Back to Dashboard
+                        </a>
+                        <a href="/admin/" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-cog mr-2"></i>
+                            Admin Panel
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+                <!-- Total Files -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
+                                <i class="fas fa-file text-primary-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Files</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ total_files }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <span class="font-medium text-gray-500">
+                                <i class="fas fa-plus text-green-500 mr-1"></i>
+                                {{ files_last_week }} new this week
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Folders -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-yellow-100 rounded-md p-3">
+                                <i class="fas fa-folder text-yellow-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Folders</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ total_folders }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <span class="font-medium text-gray-500">
+                                <i class="fas fa-plus text-green-500 mr-1"></i>
+                                {{ folders_last_week }} new this week
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Storage -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-blue-100 rounded-md p-3">
+                                <i class="fas fa-database text-blue-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Storage Used</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ total_storage }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <span class="font-medium text-gray-500">
+                                <i class="fas fa-calculator mr-1"></i>
+                                Avg: {{ avg_file_size }} per file
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                                <i class="fas fa-users text-green-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Users</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ total_users }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <span class="font-medium text-gray-500">
+                                <i class="fas fa-user-check text-green-500 mr-1"></i>
+                                {{ active_users }} active ({{ active_percentage }}%)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users By Storage Usage -->
+            <div class="bg-white shadow rounded-lg mt-6 fade-in">
+                <div class="px-6 py-5 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        <i class="fas fa-trophy mr-2 text-yellow-500"></i>
+                        Top Users by Storage Usage
+                    </h3>
+                </div>
+                
+                <div class="p-6">
+                    {% if storage_by_user %}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Storage Used</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for user in storage_by_user %}
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {% if forloop.counter == 1 %}
+                                                <span class="text-yellow-500"><i class="fas fa-crown"></i> #1</span>
+                                            {% elif forloop.counter == 2 %}
+                                                <span class="text-gray-500"><i class="fas fa-medal"></i> #2</span>
+                                            {% elif forloop.counter == 3 %}
+                                                <span class="text-amber-600"><i class="fas fa-medal"></i> #3</span>
+                                            {% else %}
+                                                #{{ forloop.counter }}
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ user.user__username }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ user.readable_storage }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-6 text-gray-500">
+                            <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                            No users have used any storage yet.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- System Information -->
+            <div class="bg-white shadow rounded-lg mt-6 fade-in">
+                <div class="px-6 py-5 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        <i class="fas fa-server mr-2 text-blue-500"></i>
+                        System Information
+                    </h3>
+                </div>
+                
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-medium text-gray-700 mb-2">Storage Metrics</h4>
+                            <ul class="space-y-3 text-sm">
+                                <li class="flex justify-between">
+                                    <span class="text-gray-500">Total Storage</span>
+                                    <span class="font-medium text-gray-900">{{ total_storage }}</span>
+                                </li>
+                                <li class="flex justify-between">
+                                    <span class="text-gray-500">Average File Size</span>
+                                    <span class="font-medium text-gray-900">{{ avg_file_size }}</span>
+                                </li>
+                                <li class="flex justify-between">
+                                    <span class="text-gray-500">Files per User</span>
+                                    <span class="font-medium text-gray-900">
+                                        {{ total_files|divisibleby:total_users|default:"0" }}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-gray-700 mb-2">Admin Actions</h4>
+                            <ul class="space-y-3 text-sm">
+                                <li>
+                                    <a href="/admin/files/fileitem/" class="flex items-center text-primary-600 hover:text-primary-800">
+                                        <i class="fas fa-file-alt mr-2"></i>
+                                        Manage Files
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="/admin/accounts/user/" class="flex items-center text-primary-600 hover:text-primary-800">
+                                        <i class="fas fa-users-cog mr-2"></i>
+                                        Manage Users
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="/admin/files/filecategory/" class="flex items-center text-primary-600 hover:text-primary-800">
+                                        <i class="fas fa-tags mr-2"></i>
+                                        Manage Categories
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="/admin/files/filesharecategory/" class="flex items-center text-primary-600 hover:text-primary-800">
+                                        <i class="fas fa-share-alt mr-2"></i>
+                                        Manage Shared Files
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="https://github.com" class="flex items-center text-primary-600 hover:text-primary-800">
+                                        <i class="fab fa-github mr-2"></i>
+                                        View Project on GitHub
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
