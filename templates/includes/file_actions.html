@@ -1,0 +1,78 @@
+{% if file %}
+<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <h3 class="text-sm font-semibold text-gray-700 mb-4">File Actions</h3>
+    <div class="grid grid-cols-2 gap-2">
+        <a href="{% url 'files:file_detail' file.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-info-circle mr-2 text-primary-500"></i>
+            Details
+        </a>
+        <a href="{% url 'files:file_download' file.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-download mr-2 text-primary-500"></i>
+            Download
+        </a>
+        <a href="{% url 'files:file_share' file.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-share-alt mr-2 text-primary-500"></i>
+            Share
+        </a>
+        <a href="{% url 'files:create_file_share_link' file.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-link mr-2 text-primary-500"></i>
+            Create Link
+        </a>
+        <a href="{% url 'files:manage_share_links' file_id=file.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-cog mr-2 text-primary-500"></i>
+            Manage Links
+        </a>
+        <form method="post" action="{% url 'files:file_toggle_favorite' file.id %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100 w-full text-left">
+                <i class="fas fa-heart mr-2 {% if file.is_favorite %}text-red-500{% else %}text-primary-500{% endif %}"></i>
+                {% if file.is_favorite %}Remove Favorite{% else %}Add Favorite{% endif %}
+            </button>
+        </form>
+        <a href="{% url 'files:file_delete' file.id %}" class="flex items-center text-sm text-red-600 p-2 rounded hover:bg-red-50">
+            <i class="fas fa-trash-alt mr-2"></i>
+            Delete
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% if folder %}
+<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <h3 class="text-sm font-semibold text-gray-700 mb-4">Folder Actions</h3>
+    <div class="grid grid-cols-2 gap-2">
+        <a href="{% url 'files:folder_contents' folder.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-folder-open mr-2 text-primary-500"></i>
+            Open
+        </a>
+        <a href="{% url 'files:create_folder' %}?parent={{ folder.id }}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-folder-plus mr-2 text-primary-500"></i>
+            New Subfolder
+        </a>
+        <a href="{% url 'files:file_upload' %}?folder={{ folder.id }}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-upload mr-2 text-primary-500"></i>
+            Upload File
+        </a>
+        <a href="{% url 'files:folder_share' folder.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-share-alt mr-2 text-primary-500"></i>
+            Share
+        </a>
+        <a href="{% url 'files:folder_unshare' folder.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-user-slash mr-2 text-primary-500"></i>
+            Manage Sharing
+        </a>
+        <a href="{% url 'files:create_folder_share_link' folder.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-link mr-2 text-primary-500"></i>
+            Create Link
+        </a>
+        <a href="{% url 'files:manage_folder_share_links' folder_id=folder.id %}" class="flex items-center text-sm text-gray-700 p-2 rounded hover:bg-gray-100">
+            <i class="fas fa-cog mr-2 text-primary-500"></i>
+            Manage Links
+        </a>
+        <a href="{% url 'files:folder_delete' folder.id %}" class="flex items-center text-sm text-red-600 p-2 rounded hover:bg-red-50">
+            <i class="fas fa-trash-alt mr-2"></i>
+            Delete
+        </a>
+    </div>
+</div>
+{% endif %} 

@@ -1,0 +1,410 @@
+{% extends 'base.html' %}
+
+{% block title %}My Files - CloudVault{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-[80vh]">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-3xl font-bold text-gray-900 fade-in">My Files</h1>
+                        <p class="mt-1 text-gray-500 fade-in">View, organize, and manage your files</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        {% if current_folder %}
+                        <a href="{% url 'files:create_folder' %}?parent={{ current_folder.id }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-folder-plus mr-2"></i>
+                            New Folder
+                        </a>
+                        <a href="{% url 'files:file_upload' %}?folder={{ current_folder.id }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-upload mr-2"></i>
+                            Upload Files
+                        </a>
+                        {% else %}
+                        <a href="{% url 'files:create_folder' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-folder-plus mr-2"></i>
+                            New Folder
+                        </a>
+                        <a href="{% url 'files:file_upload' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-upload mr-2"></i>
+                            Upload Files
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Breadcrumb Navigation -->
+                {% if current_folder or breadcrumbs %}
+                <nav class="mt-4">
+                    <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                        <li>
+                            <a href="{% url 'files:file_list' %}" class="hover:text-primary-700 hover:underline">
+                                <i class="fas fa-home"></i>
+                            </a>
+                        </li>
+                        {% for folder in breadcrumbs %}
+                            <li class="flex items-center">
+                                <span class="mx-1">/</span>
+                                {% if forloop.last %}
+                                    <span class="text-gray-900 font-medium">{{ folder.name }}</span>
+                                {% else %}
+                                    <a href="{% url 'files:folder_contents' folder.id %}" class="hover:text-primary-700 hover:underline">
+                                        {{ folder.name }}
+                                    </a>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ol>
+                </nav>
+                {% endif %}
+            </div>
+            
+            <div class="flex flex-col md:flex-row md:space-x-6">
+                <!-- Sidebar -->
+                {% include 'includes/dashboard_sidebar.html' %}
+                
+                <!-- Main Content -->
+                <div class="w-full fade-in">
+                    <!-- Toolbar -->
+                    <div class="bg-white p-4 rounded-lg shadow mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center mb-4 sm:mb-0">
+                            <div class="relative inline-block text-left mr-3">
+                                <button id="viewToggle" type="button" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-th mr-2"></i>
+                                    <span id="viewMode">Grid View</span>
+                                    <i class="fas fa-chevron-down ml-2"></i>
+                                </button>
+                                <div id="viewDropdown" class="hidden origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                    <div class="py-1" role="menu" aria-orientation="vertical">
+                                        <a href="#" id="gridView" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center" role="menuitem">
+                                            <i class="fas fa-th mr-2"></i> Grid View
+                                        </a>
+                                        <a href="#" id="listView" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center" role="menuitem">
+                                            <i class="fas fa-list mr-2"></i> List View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-sm text-gray-500">
+                                {{ folders.count|add:files.count }} item{{ folders.count|add:files.count|pluralize }}
+                            </div>
+                        </div>
+                        
+                        <!-- Search form -->
+                        <form action="{% url 'files:file_list' %}" method="get" class="flex">
+                            {% if current_folder %}
+                            <input type="hidden" name="folder" value="{{ current_folder.id }}">
+                            {% endif %}
+                            <div class="relative rounded-md shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                                <input type="text" name="q" id="search" value="{{ query }}" 
+                                       class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md" 
+                                       placeholder="Search files...">
+                            </div>
+                            <button type="submit" class="ml-2 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                Search
+                            </button>
+                        </form>
+                    </div>
+                    
+                    {% if current_folder %}
+                    <!-- Current Folder Actions -->
+                    <div class="bg-white p-4 rounded-lg shadow mb-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="h-10 w-10 bg-yellow-100 flex items-center justify-center rounded-lg">
+                                    <i class="fas fa-folder text-yellow-500 text-xl"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-lg font-medium text-gray-900">{{ current_folder.name }}</h3>
+                                    <p class="text-sm text-gray-500">Created: {{ current_folder.created_at|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                            <div class="flex space-x-2">
+                                <a href="{% url 'files:folder_share' current_folder.id %}" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-share-alt mr-1.5 text-primary-500"></i> Share
+                                </a>
+                                <a href="{% url 'files:create_folder_share_link' current_folder.id %}" class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-link mr-1.5 text-primary-500"></i> Create Link
+                                </a>
+                                <a href="{% url 'files:folder_delete' current_folder.id %}" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                    <i class="fas fa-trash-alt mr-1.5"></i> Delete
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if folders.count > 0 or files.count > 0 %}
+                    <!-- Grid View (default) -->
+                    <div id="gridViewContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- Folders -->
+                        {% for folder in folders %}
+                        <div class="bg-white rounded-lg shadow overflow-hidden hover:shadow-md transition-shadow hover-scale">
+                            <div class="h-32 bg-yellow-100 flex items-center justify-center">
+                                <i class="fas fa-folder text-yellow-500 text-5xl"></i>
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-start justify-between">
+                                    <a href="{% url 'files:folder_contents' folder.id %}" class="text-sm font-medium text-gray-900 truncate hover:underline" title="{{ folder.name }}">{{ folder.name }}</a>
+                                    <div class="flex items-center">
+                                        <div class="relative ml-2" x-data="{ open: false }">
+                                            <button @click="open = !open" class="text-gray-400 hover:text-gray-500">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                                <a href="{% url 'files:create_folder' %}?parent={{ folder.id }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">New Subfolder</a>
+                                                <a href="{% url 'files:file_upload' %}?folder={{ folder.id }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Upload to Folder</a>
+                                                <a href="{% url 'files:folder_share' folder.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Share</a>
+                                                <a href="{% url 'files:folder_unshare' folder.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Manage Sharing</a>
+                                                <a href="{% url 'files:create_folder_share_link' folder.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Create Link</a>
+                                                <a href="{% url 'files:folder_delete' folder.id %}" class="block px-4 py-2 text-sm text-red-700 hover:bg-red-50">Delete</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 flex items-center">
+                                    <span>Folder</span>
+                                </p>
+                                <p class="mt-2 text-xs text-gray-500">
+                                    Last modified: {{ folder.updated_at|date:"M d, Y" }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Files -->
+                        {% for file in files %}
+                        <div class="bg-white rounded-lg shadow overflow-hidden hover:shadow-md transition-shadow hover-scale">
+                            <div class="h-32 bg-{{ file.category.color|default:'primary-100' }} flex items-center justify-center">
+                                <i class="fas fa-{{ file.category.icon|default:'file' }} text-{{ file.category.color|default:'primary-600' }} text-5xl"></i>
+                            </div>
+                            <div class="p-4">
+                                <div class="flex items-start justify-between">
+                                    <h3 class="text-sm font-medium text-gray-900 truncate" title="{{ file.title }}">{{ file.title }}</h3>
+                                    <div class="flex items-center">
+                                        <form method="post" action="{% url 'files:file_toggle_favorite' file.id %}" class="inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="text-gray-400 hover:text-red-500 {% if file.is_favorite %}text-red-500{% endif %}">
+                                                <i class="fas fa-heart"></i>
+                                            </button>
+                                        </form>
+                                        <div class="relative ml-2" x-data="{ open: false }">
+                                            <button @click="open = !open" class="text-gray-400 hover:text-gray-500">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 z-10">
+                                                <a href="{% url 'files:file_detail' file.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">View Details</a>
+                                                <a href="{% url 'files:file_download' file.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Download</a>
+                                                <a href="{% url 'files:file_share' file.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Share</a>
+                                                <a href="{% url 'files:create_file_share_link' file.id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Create Link</a>
+                                                <a href="{% url 'files:file_delete' file.id %}" class="block px-4 py-2 text-sm text-red-700 hover:bg-red-50">Delete</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500 flex items-center justify-between">
+                                    <span>{{ file.extension }}</span>
+                                    <span>{{ file.get_readable_file_size }}</span>
+                                </p>
+                                <p class="mt-2 text-xs text-gray-500">
+                                    Last modified: {{ file.updated_at|date:"M d, Y" }}
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- List View (hidden by default) -->
+                    <div id="listViewContainer" class="hidden bg-white rounded-lg shadow overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Modified</th>
+                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <!-- Folders -->
+                                {% for folder in folders %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-folder text-yellow-500"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <a href="{% url 'files:folder_contents' folder.id %}" class="text-sm font-medium text-gray-900 hover:underline">{{ folder.name }}</a>
+                                                <div class="text-xs text-gray-500">Folder</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">Folder</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">-</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">{{ folder.updated_at|date:"M d, Y" }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <a href="{% url 'files:folder_share' folder.id %}" class="text-primary-600 hover:text-primary-900 mr-3">Share</a>
+                                        <a href="{% url 'files:folder_unshare' folder.id %}" class="text-primary-600 hover:text-primary-900 mr-3">Unshare</a>
+                                        <a href="{% url 'files:folder_delete' folder.id %}" class="text-red-600 hover:text-red-900">Delete</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                
+                                <!-- Files -->
+                                {% for file in files %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 bg-{{ file.category.color|default:'primary-100' }} rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-{{ file.category.icon|default:'file' }} text-{{ file.category.color|default:'primary-600' }}"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">{{ file.title }}</div>
+                                                <div class="text-xs text-gray-500">{{ file.extension }}</div>
+                                            </div>
+                                            {% if file.is_favorite %}
+                                            <div class="ml-2 text-red-500">
+                                                <i class="fas fa-heart"></i>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">{{ file.extension }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">{{ file.get_readable_file_size }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">{{ file.updated_at|date:"M d, Y" }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <a href="{% url 'files:file_detail' file.id %}" class="text-primary-600 hover:text-primary-900 mr-3">View</a>
+                                        <a href="{% url 'files:file_download' file.id %}" class="text-primary-600 hover:text-primary-900 mr-3">Download</a>
+                                        <a href="{% url 'files:file_delete' file.id %}" class="text-red-600 hover:text-red-900">Delete</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="bg-white rounded-lg shadow p-10 text-center">
+                        <i class="fas fa-folder-open text-gray-400 text-6xl mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No items found</h3>
+                        {% if query %}
+                            <p class="text-gray-500 mb-6">No files or folders match your search for "{{ query }}".</p>
+                        {% elif is_favorite %}
+                            <p class="text-gray-500 mb-6">You don't have any favorite files yet.</p>
+                        {% elif current_category %}
+                            <p class="text-gray-500 mb-6">You don't have any files in this category yet.</p>
+                        {% elif current_folder %}
+                            <p class="text-gray-500 mb-6">This folder is empty.</p>
+                        {% else %}
+                            <p class="text-gray-500 mb-6">You haven't created any files or folders yet.</p>
+                        {% endif %}
+                        
+                        <div class="flex flex-wrap justify-center gap-3">
+                            {% if current_folder %}
+                            <a href="{% url 'files:create_folder' %}?parent={{ current_folder.id }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-folder-plus mr-2"></i>
+                                New Folder
+                            </a>
+                            <a href="{% url 'files:file_upload' %}?folder={{ current_folder.id }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-upload mr-2"></i>
+                                Upload Files
+                            </a>
+                            {% else %}
+                            <a href="{% url 'files:create_folder' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-folder-plus mr-2"></i>
+                                New Folder
+                            </a>
+                            <a href="{% url 'files:file_upload' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-upload mr-2"></i>
+                                Upload Files
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // View toggle
+    const viewToggle = document.getElementById('viewToggle');
+    const viewDropdown = document.getElementById('viewDropdown');
+    const viewMode = document.getElementById('viewMode');
+    const gridViewBtn = document.getElementById('gridView');
+    const listViewBtn = document.getElementById('listView');
+    const gridViewContainer = document.getElementById('gridViewContainer');
+    const listViewContainer = document.getElementById('listViewContainer');
+    
+    // Toggle dropdown
+    viewToggle.addEventListener('click', () => {
+        viewDropdown.classList.toggle('hidden');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (event) => {
+        if (!viewToggle.contains(event.target) && !viewDropdown.contains(event.target)) {
+            viewDropdown.classList.add('hidden');
+        }
+    });
+    
+    // Switch to grid view
+    gridViewBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        gridViewContainer.classList.remove('hidden');
+        listViewContainer.classList.add('hidden');
+        viewMode.textContent = 'Grid View';
+        viewDropdown.classList.add('hidden');
+        
+        // Save preference in localStorage
+        localStorage.setItem('cloudvault_view_mode', 'grid');
+    });
+    
+    // Switch to list view
+    listViewBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        gridViewContainer.classList.add('hidden');
+        listViewContainer.classList.remove('hidden');
+        viewMode.textContent = 'List View';
+        viewDropdown.classList.add('hidden');
+        
+        // Save preference in localStorage
+        localStorage.setItem('cloudvault_view_mode', 'list');
+    });
+    
+    // Load saved preference
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedViewMode = localStorage.getItem('cloudvault_view_mode');
+        if (savedViewMode === 'list') {
+            gridViewContainer.classList.add('hidden');
+            listViewContainer.classList.remove('hidden');
+            viewMode.textContent = 'List View';
+        }
+    });
+</script>
+{% endblock %}
+
+{% endblock %} 

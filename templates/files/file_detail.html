@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ file.title }} - CloudVault{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-[80vh]">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-3xl font-bold text-gray-900 fade-in">File Details</h1>
+                        <p class="mt-1 text-gray-500 fade-in">View and manage file information</p>
+                    </div>
+                    <div>
+                        <a href="{% url 'files:file_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Back to Files
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row md:space-x-6">
+                <!-- Sidebar -->
+                {% include 'includes/dashboard_sidebar.html' %}
+                
+                <!-- Main Content -->
+                <div class="w-full fade-in">
+                    <div class="bg-white shadow overflow-hidden rounded-lg">
+                        <div class="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-12 w-12 bg-{{ file.category.color|default:'primary-100' }} rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-{{ file.category.icon|default:'file' }} text-{{ file.category.color|default:'primary-600' }} text-2xl"></i>
+                                    </div>
+                                    <div class="ml-4">
+                                        <h2 class="text-xl font-semibold text-gray-900">{{ file.title }}</h2>
+                                        <p class="text-sm text-gray-500">
+                                            <span class="font-medium uppercase">{{ file.extension }}</span>
+                                            <span class="mx-2">•</span>
+                                            <span>{{ file.get_readable_file_size }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <form method="post" action="{% url 'files:file_toggle_favorite' file.id %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="inline-flex items-center p-2 border border-transparent rounded-md text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                        <i class="fas fa-heart text-xl {% if file.is_favorite %}text-red-500{% else %}text-gray-400{% endif %}"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="border-b border-gray-200 p-6">
+                            {% if file.description %}
+                            <div class="mb-6">
+                                <h3 class="text-base font-medium text-gray-900 mb-2">Description</h3>
+                                <p class="text-gray-600">{{ file.description|linebreaks }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 class="text-base font-medium text-gray-900 mb-3">File Information</h3>
+                                    <div class="space-y-3">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Filename</span>
+                                            <span class="text-sm text-gray-900">{{ file.filename }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Size</span>
+                                            <span class="text-sm text-gray-900">{{ file.get_readable_file_size }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Type</span>
+                                            <span class="text-sm text-gray-900">{{ file.extension }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Category</span>
+                                            <span class="text-sm text-gray-900">{{ file.category.name|default:"None" }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Folder</span>
+                                            <span class="text-sm text-gray-900">{{ file.get_folder_path }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Public</span>
+                                            <span class="text-sm text-gray-900">{{ file.is_public|yesno:"Yes,No" }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <h3 class="text-base font-medium text-gray-900 mb-3">Timeline</h3>
+                                    <div class="space-y-3">
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Created</span>
+                                            <span class="text-sm text-gray-900">{{ file.created_at|date:"M d, Y, h:i A" }}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-sm text-gray-500">Last Updated</span>
+                                            <span class="text-sm text-gray-900">{{ file.updated_at|date:"M d, Y, h:i A" }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                            <div class="flex flex-wrap gap-3">
+                                <a href="{% url 'files:file_download' file.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-download mr-2 text-primary-500"></i>
+                                    Download
+                                </a>
+                                <a href="{% url 'files:file_share' file.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-share-alt mr-2 text-primary-500"></i>
+                                    Share
+                                </a>
+                                <a href="{% url 'files:create_file_share_link' file.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-link mr-2 text-primary-500"></i>
+                                    Create Link
+                                </a>
+                                <a href="{% url 'files:file_delete' file.id %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                    <i class="fas fa-trash-alt mr-2"></i>
+                                    Delete
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Shared With -->
+                        <div class="px-6 py-4">
+                            <h3 class="text-base font-medium text-gray-900 mb-4">Shared With</h3>
+                            
+                            {% if shared_with %}
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Access Level</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Shared</th>
+                                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        {% for shared in shared_with %}
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center">
+                                                    {% if shared.shared_with.profile.avatar %}
+                                                        <img class="h-8 w-8 rounded-full object-cover mr-2" src="{{ shared.shared_with.profile.avatar.url }}" alt="{{ shared.shared_with.username }}">
+                                                    {% else %}
+                                                        <div class="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center text-white mr-2">
+                                                            {{ shared.shared_with.username|first|upper }}
+                                                        </div>
+                                                    {% endif %}
+                                                    <div class="text-sm text-gray-900">{{ shared.shared_with.username }}</div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{{ shared.access_level|yesno:'green-100,blue-100' }} text-{{ shared.access_level|yesno:'green-800,blue-800' }}">
+                                                    {{ shared.access_level|title }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ shared.shared_at|date:"M d, Y" }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <a href="#" class="text-red-600 hover:text-red-900">Remove</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-gray-500 text-center py-4">This file is not shared with anyone yet.</p>
+                            
+                            <!-- Share Form -->
+                            <div class="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <h4 class="text-sm font-medium text-gray-900 mb-3">Share with a user</h4>
+                                <form method="post" action="{% url 'files:file_share' file.id %}" class="flex flex-col sm:flex-row gap-3">
+                                    {% csrf_token %}
+                                    <div class="flex-grow">
+                                        <label for="username" class="sr-only">Username</label>
+                                        <input type="text" name="username" id="username" required placeholder="Enter username" class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    <div>
+                                        <label for="access_level" class="sr-only">Access Level</label>
+                                        <select name="access_level" id="access_level" class="shadow-sm focus:ring-primary-500 focus:border-primary-500 block w-full sm:text-sm border-gray-300 rounded-md">
+                                            <option value="view">View only</option>
+                                            <option value="edit">Edit</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                        <i class="fas fa-share-alt mr-2"></i> Share
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Share Links -->
+                        <div class="px-6 py-4 border-t border-gray-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-base font-medium text-gray-900">Share Links</h3>
+                                <a href="{% url 'files:create_file_share_link' file.id %}" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-plus mr-1"></i> Create New
+                                </a>
+                            </div>
+                            
+                            {% with file.share_links.all as links %}
+                            {% if links %}
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created Date</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password</th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+                                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        {% for link in links %}
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ link.created_at|date:"M d, Y" }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {% if link.expires_at %}
+                                                {{ link.expires_at|date:"M d, Y" }}
+                                                {% else %}
+                                                Never
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {% if link.password %}
+                                                Yes
+                                                {% else %}
+                                                No
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ link.access_count }} views
+                                                {% if link.max_access_count %}
+                                                / {{ link.max_access_count }} max
+                                                {% endif %}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <a href="{{ link.get_absolute_url }}" target="_blank" class="text-primary-600 hover:text-primary-900 mr-3">View</a>
+                                                <a href="{% url 'files:delete_share_link' link.id %}" class="text-red-600 hover:text-red-900">Delete</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <p class="text-gray-500 text-center py-4">No share links have been created for this file yet.</p>
+                            {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

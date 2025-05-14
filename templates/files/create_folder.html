@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Folder - CloudVault{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ensure consistent form field heights */
+    .form-input {
+        height: 42px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-[80vh] py-10">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 fade-in">Create New Folder</h1>
+                <p class="mt-1 text-sm text-gray-500 fade-in">
+                    {% if parent_folder %}
+                    Creating a folder inside "{{ parent_folder.name }}"
+                    {% else %}
+                    Create a new folder in your root directory
+                    {% endif %}
+                </p>
+            </div>
+            
+            {% if parent_folder %}
+            <a href="{% url 'files:file_list' %}?folder={{ parent_folder.id }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to {{ parent_folder.name }}
+            </a>
+            {% else %}
+            <a href="{% url 'files:file_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Files
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="bg-white shadow rounded-lg overflow-hidden fade-in">
+            <div class="p-6">
+                <form method="post" action="{% url 'files:create_folder' %}">
+                    {% csrf_token %}
+                    
+                    {% if parent_folder %}
+                    <input type="hidden" name="parent" value="{{ parent_folder.id }}">
+                    {% endif %}
+                    
+                    <div class="mb-6">
+                        <label for="folder_name" class="block text-sm font-medium text-gray-700 mb-1">
+                            <i class="fas fa-folder mr-2"></i>
+                            Folder Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="folder_name" id="folder_name" required autofocus
+                               class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md form-input"
+                               placeholder="Enter folder name">
+                    </div>
+                    
+                    <div class="flex items-center justify-end">
+                        {% if parent_folder %}
+                        <a href="{% url 'files:file_list' %}?folder={{ parent_folder.id }}" class="text-sm font-medium text-gray-700 hover:text-gray-500 mr-4">
+                            Cancel
+                        </a>
+                        {% else %}
+                        <a href="{% url 'files:file_list' %}" class="text-sm font-medium text-gray-700 hover:text-gray-500 mr-4">
+                            Cancel
+                        </a>
+                        {% endif %}
+                        
+                        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-folder-plus mr-2"></i>
+                            Create Folder
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="mt-6 bg-white shadow rounded-lg p-6 fade-in">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Folder Organization Tips</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 border border-gray-200 rounded-lg">
+                    <div class="flex items-center mb-3">
+                        <div class="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center text-primary-600 mr-3">
+                            <i class="fas fa-sitemap"></i>
+                        </div>
+                        <h4 class="font-medium text-gray-900">Create a structure</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">Organize folders by project, department, or file type for easier navigation.</p>
+                </div>
+                
+                <div class="p-4 border border-gray-200 rounded-lg">
+                    <div class="flex items-center mb-3">
+                        <div class="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center text-green-600 mr-3">
+                            <i class="fas fa-folder-tree"></i>
+                        </div>
+                        <h4 class="font-medium text-gray-900">Nest folders</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">Create subfolders for more detailed organization of related materials.</p>
+                </div>
+                
+                <div class="p-4 border border-gray-200 rounded-lg">
+                    <div class="flex items-center mb-3">
+                        <div class="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mr-3">
+                            <i class="fas fa-share-alt"></i>
+                        </div>
+                        <h4 class="font-medium text-gray-900">Share with team</h4>
+                    </div>
+                    <p class="text-sm text-gray-600">Create focused folders for collaboration with specific team members.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CloudVault{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Dashboard Header -->
+            <div class="mb-8">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-3xl font-bold text-gray-900 fade-in">Welcome, {{ user.first_name|default:user.username }}</h1>
+                        <p class="mt-1 text-gray-500 fade-in">Manage your files and storage</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <a href="{% url 'files:file_upload' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-upload mr-2"></i>
+                            Upload Files
+                        </a>
+                        <a href="{% url 'files:file_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-folder-open mr-2"></i>
+                            Browse Files
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Storage Usage -->
+            <div class="bg-white shadow rounded-lg p-6 mb-6 fade-in">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <h2 class="text-lg font-medium text-gray-900">Storage Usage</h2>
+                        <p class="text-sm text-gray-500">{{ user.profile.get_readable_storage_used }} used of {{ user.profile.get_readable_storage_limit }}</p>
+                    </div>
+                    
+                    <div class="w-full md:w-1/3">
+                        <div class="relative pt-1">
+                            <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
+                                <div style='width: {{ user.profile.get_storage_usage_percentage }}%' class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if user.profile.get_storage_usage_percentage > 90 %}bg-red-500{% elif user.profile.get_storage_usage_percentage > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between mt-1 text-xs text-gray-600">
+                            <span>{{ user.profile.get_storage_usage_percentage }}% used</span>
+                            <span>{{ 100|add:"-"|add:user.profile.get_storage_usage_percentage }}% available</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+                <!-- Total Files -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-primary-100 rounded-md p-3">
+                                <i class="fas fa-file text-primary-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Files</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ total_files|default:"0" }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <a href="{% url 'files:file_list' %}" class="font-medium text-primary-600 hover:text-primary-500">
+                                View all files <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Favorite Files -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-red-100 rounded-md p-3">
+                                <i class="fas fa-heart text-red-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Favorite Files</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ favorites|default:"0" }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <a href="{% url 'files:file_list' %}?favorite=1" class="font-medium text-primary-600 hover:text-primary-500">
+                                View favorites <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shared Files -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-green-100 rounded-md p-3">
+                                <i class="fas fa-share-alt text-green-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Shared Files</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">0</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <a href="{% url 'files:shared_files' %}" class="font-medium text-primary-600 hover:text-primary-500">
+                                View shared files <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Categories -->
+                <div class="bg-white overflow-hidden shadow rounded-lg fade-in hover-scale">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-purple-100 rounded-md p-3">
+                                <i class="fas fa-folder text-purple-600 text-xl"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Categories</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900">{{ categories.count|default:"0" }}</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3">
+                        <div class="text-sm">
+                            <a href="{% url 'files:file_list' %}" class="font-medium text-primary-600 hover:text-primary-500">
+                                Browse categories <i class="fas fa-arrow-right ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Files -->
+            <div class="bg-white shadow rounded-lg overflow-hidden fade-in">
+                <div class="px-6 py-5 border-b border-gray-200">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        Recent Files
+                    </h3>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Your most recently updated files
+                    </p>
+                </div>
+                
+                <ul class="divide-y divide-gray-200">
+                    {% if recent_files %}
+                        {% for file in recent_files %}
+                        <li class="hover:bg-gray-50">
+                            <a href="{% url 'files:file_detail' file.id %}" class="block hover:bg-gray-50">
+                                <div class="px-6 py-4 flex items-center">
+                                    <div class="w-10 h-10 flex-shrink-0 mr-3 rounded-lg bg-{{ file.category.color|default:'primary-100' }} flex items-center justify-center text-{{ file.category.color|default:'primary-600' }}">
+                                        <i class="fas fa-{{ file.category.icon|default:'file' }} text-lg"></i>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex justify-between text-sm">
+                                            <p class="font-medium text-gray-900 truncate">{{ file.title }}</p>
+                                            <p class="ml-2 flex-shrink-0 text-gray-500">{{ file.get_readable_file_size }}</p>
+                                        </div>
+                                        <div class="flex justify-between text-xs mt-1">
+                                            <p class="text-gray-500">
+                                                <span class="uppercase font-medium">{{ file.extension }}</span>
+                                                {% if file.is_favorite %}<span class="ml-2 text-red-500"><i class="fas fa-heart"></i></span>{% endif %}
+                                            </p>
+                                            <p class="text-gray-500">{{ file.updated_at|date:"M d, Y" }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="ml-5">
+                                        <i class="fas fa-chevron-right text-gray-400"></i>
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                    <li class="px-6 py-10 text-center text-gray-500">
+                        <i class="fas fa-folder-open text-5xl mb-4"></i>
+                        <p>You don't have any files yet.</p>
+                        <div class="mt-4">
+                            <a href="{% url 'files:file_upload' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-upload mr-2"></i>
+                                Upload Your First File
+                            </a>
+                        </div>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                {% if recent_files %}
+                <div class="bg-gray-50 px-6 py-3 flex justify-center">
+                    <a href="{% url 'files:file_list' %}" class="text-sm font-medium text-primary-600 hover:text-primary-500">
+                        View all files <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

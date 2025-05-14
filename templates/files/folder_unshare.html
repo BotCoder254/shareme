@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Unshare Folder - CloudVault{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ensure consistent form field heights */
+    .form-input {
+        height: 42px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-[80vh]">
+    <div class="max-w-3xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div class="mb-4 md:mb-0">
+                        <h1 class="text-3xl font-bold text-gray-900 fade-in">Unshare Folder</h1>
+                        <p class="mt-1 text-gray-500 fade-in">Remove access to "{{ folder.name }}"</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <a href="{% url 'files:file_list' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover-scale">
+                            <i class="fas fa-arrow-left mr-2"></i>
+                            Back to Files
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Folder Info Card -->
+            <div class="bg-white shadow rounded-lg p-6 mb-6 fade-in">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-folder text-yellow-500 text-2xl"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h2 class="text-lg font-medium text-gray-900">{{ folder.name }}</h2>
+                        <p class="text-sm text-gray-500">Created: {{ folder.created_at|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Unshare Form Card -->
+            <div class="bg-white shadow rounded-lg overflow-hidden mb-6 fade-in">
+                <div class="px-6 py-5 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-900">Remove Sharing Access</h2>
+                </div>
+                
+                <div class="px-6 py-6">
+                    <form method="post" action="{% url 'files:folder_unshare' folder.id %}" class="space-y-6">
+                        {% csrf_token %}
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
+                                <i class="fas fa-user-minus mr-2"></i>
+                                Username to remove access
+                            </label>
+                            <input type="text" name="username" id="username" required
+                                   class="focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md form-input"
+                                   placeholder="Enter username">
+                        </div>
+                        
+                        <div class="pt-4">
+                            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                <i class="fas fa-user-minus mr-2"></i> Remove Access
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Currently Shared With Card -->
+            <div class="bg-white shadow rounded-lg overflow-hidden fade-in">
+                <div class="px-6 py-5 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-medium text-gray-900">Currently Shared With</h2>
+                    <span class="px-3 py-1 bg-primary-100 text-primary-800 text-xs font-semibold rounded-full">
+                        {{ shared_with.count }} user{{ shared_with.count|pluralize }}
+                    </span>
+                </div>
+                
+                <div class="px-6 py-3">
+                    {% if shared_with %}
+                    <ul class="divide-y divide-gray-200">
+                        {% for share in shared_with %}
+                        <li class="py-4 flex items-center justify-between">
+                            <div class="flex items-center">
+                                {% if share.shared_with.profile.avatar %}
+                                    <img class="h-10 w-10 rounded-full object-cover" src="{{ share.shared_with.profile.avatar.url }}" alt="{{ share.shared_with.username }}">
+                                {% else %}
+                                    <div class="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center text-white">
+                                        {{ share.shared_with.username|first|upper }}
+                                    </div>
+                                {% endif %}
+                                <div class="ml-3">
+                                    <p class="text-sm font-medium text-gray-900">{{ share.shared_with.username }}</p>
+                                    <div class="flex items-center text-xs">
+                                        <span class="text-gray-500">Shared on: {{ share.shared_at|date:"M d, Y" }}</span>
+                                        <span class="ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{{ share.access_level|yesno:'green-100,blue-100' }} text-{{ share.access_level|yesno:'green-800,blue-800' }}">
+                                            {{ share.access_level|title }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <form method="post" action="{% url 'files:folder_unshare' folder.id %}" class="inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="username" value="{{ share.shared_with.username }}">
+                                <button type="submit" class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="py-6 text-center text-gray-500">
+                        <i class="fas fa-users text-4xl mb-3"></i>
+                        <p>This folder hasn't been shared with anyone yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

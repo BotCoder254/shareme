@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Profile - CloudVault{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Ensure consistent form field heights */
+    .form-input {
+        height: 42px;
+    }
+    
+    textarea.form-input {
+        min-height: 84px;
+    }
+    
+    .file-input-container {
+        position: relative;
+        overflow: hidden;
+        display: inline-block;
+    }
+    
+    .file-input-container input[type=file] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+    
+    .avatar-preview {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #6366f1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bg-gray-100 min-h-[80vh] py-10">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="bg-white rounded-lg shadow overflow-hidden fade-in">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-900">Edit Profile</h1>
+                <p class="mt-1 text-sm text-gray-500">Update your personal information and avatar</p>
+            </div>
+            
+            <form method="post" enctype="multipart/form-data" class="p-6 space-y-6">
+                {% csrf_token %}
+                
+                {% if user_form.errors or profile_form.errors %}
+                <div class="bg-red-50 text-red-700 p-4 rounded-md mb-6">
+                    <p class="font-medium">Please correct the following errors:</p>
+                    <ul class="list-disc pl-5 mt-2 text-sm">
+                        {% for field in user_form %}
+                            {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for field in profile_form %}
+                            {% for error in field.errors %}
+                                <li>{{ field.label }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- Avatar Section -->
+                <div class="flex flex-col sm:flex-row items-start sm:items-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <div>
+                        {% if user.profile.avatar %}
+                            <img src="{{ user.profile.avatar.url }}" alt="Profile Avatar" class="avatar-preview">
+                        {% else %}
+                            <div class="w-24 h-24 rounded-full bg-primary-500 flex items-center justify-center text-white text-2xl">
+                                {{ user.username|first|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-1">Profile Picture</h3>
+                        <p class="text-sm text-gray-500 mb-3">PNG, JPG or GIF, max 2MB</p>
+                        
+                        <div class="file-input-container">
+                            <button type="button" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-upload mr-2"></i> Upload New Picture
+                            </button>
+                            <input type="file" name="avatar" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- User Information -->
+                <div class="border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Account Information</h3>
+                    
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <div>
+                            <label for="id_username" class="block text-sm font-medium text-gray-700 mb-1">
+                                Username
+                            </label>
+                            <input type="text" name="username" id="id_username" value="{{ user_form.username.value }}" required
+                                   class="form-input mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                        
+                        <div>
+                            <label for="id_email" class="block text-sm font-medium text-gray-700 mb-1">
+                                Email Address
+                            </label>
+                            <input type="email" name="email" id="id_email" value="{{ user_form.email.value }}" required
+                                   class="form-input mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                        
+                        <div>
+                            <label for="id_first_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                First Name
+                            </label>
+                            <input type="text" name="first_name" id="id_first_name" value="{{ user_form.first_name.value|default:'' }}"
+                                   class="form-input mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                        
+                        <div>
+                            <label for="id_last_name" class="block text-sm font-medium text-gray-700 mb-1">
+                                Last Name
+                            </label>
+                            <input type="text" name="last_name" id="id_last_name" value="{{ user_form.last_name.value|default:'' }}"
+                                   class="form-input mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bio -->
+                <div class="border-t border-gray-200 pt-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Bio</h3>
+                    
+                    <div>
+                        <label for="id_bio" class="block text-sm font-medium text-gray-700 mb-1">
+                            Tell us about yourself
+                        </label>
+                        <textarea name="bio" id="id_bio" rows="4"
+                                 class="form-input mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">{{ profile_form.bio.value|default:'' }}</textarea>
+                        <p class="mt-1 text-sm text-gray-500">Brief description for your profile.</p>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="border-t border-gray-200 pt-6 flex justify-end space-x-3">
+                    <a href="{% url 'accounts:profile' %}" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Cancel
+                    </a>
+                    <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Preview uploaded image
+        const fileInput = document.querySelector('input[type="file"]');
+        const imgPreview = document.querySelector('.avatar-preview');
+        
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    if (imgPreview) {
+                        imgPreview.src = e.target.result;
+                    } else {
+                        // If no preview image exists yet, create one
+                        const newPreview = document.createElement('img');
+                        newPreview.src = e.target.result;
+                        newPreview.classList.add('avatar-preview');
+                        
+                        const initialDiv = document.querySelector('.w-24.h-24.rounded-full');
+                        if (initialDiv) {
+                            initialDiv.parentNode.replaceChild(newPreview, initialDiv);
+                        }
+                    }
+                }
+                
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    });
+</script>
+{% endblock %} 

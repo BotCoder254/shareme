@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Secure Cloud Storage Platform{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="py-12 md:py-20 bg-gradient-to-b from-white to-primary-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="lg:grid lg:grid-cols-2 lg:gap-8 items-center">
+            <div class="mb-12 lg:mb-0">
+                <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900 fade-in">
+                    <span class="block">Store, Share & Manage</span>
+                    <span class="block text-primary-600">Your Files Securely</span>
+                </h1>
+                <p class="mt-6 text-xl text-gray-500 max-w-3xl fade-in">
+                    CloudVault provides a secure, fast, and user-friendly platform to store and manage all your important files. 
+                    Access your data from anywhere, anytime.
+                </p>
+                <div class="mt-8 flex flex-col sm:flex-row gap-4 fade-in">
+                    <a href="{% url 'accounts:signup' %}" 
+                       class="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 hover-scale">
+                        <i class="fas fa-user-plus mr-2"></i> Get Started - Free
+                    </a>
+                    <a href="{% url 'core:features' %}" 
+                       class="inline-flex items-center justify-center px-5 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 hover-scale">
+                        <i class="fas fa-info-circle mr-2"></i> Learn More
+                    </a>
+                </div>
+                <div class="mt-6 text-gray-500 fade-in">
+                    <span class="flex items-center">
+                        <i class="fas fa-lock text-primary-500 mr-2"></i> 
+                        End-to-end encryption
+                    </span>
+                </div>
+            </div>
+            <div class="relative fade-in">
+                <img class="rounded-lg shadow-xl hover-scale" 
+                     src="https://images.unsplash.com/photo-1544731612-de7f96afe55f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80" 
+                     alt="CloudVault Dashboard">
+                <div class="absolute -bottom-5 -right-5 bg-white rounded-lg shadow-lg px-4 py-3 border border-gray-100 hidden md:block">
+                    <div class="flex items-center">
+                        <i class="fas fa-shield-alt text-primary-500 text-xl mr-2"></i>
+                        <span class="text-sm font-medium text-gray-900">Enterprise-Grade Security</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl fade-in">
+                Key Features
+            </h2>
+            <p class="mt-4 text-lg text-gray-500 max-w-3xl mx-auto fade-in">
+                Discover why thousands of users trust CloudVault for their storage needs
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Feature 1 -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow fade-in hover-scale">
+                <div class="w-12 h-12 bg-primary-100 text-primary-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-lock text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Secure Storage</h3>
+                <p class="text-gray-500">
+                    Your files are encrypted with AES-256 encryption, ensuring maximum protection of your data.
+                </p>
+            </div>
+            
+            <!-- Feature 2 -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow fade-in hover-scale">
+                <div class="w-12 h-12 bg-secondary-100 text-secondary-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-share-alt text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Easy Sharing</h3>
+                <p class="text-gray-500">
+                    Share files with teammates or clients with customizable permission levels and expiration dates.
+                </p>
+            </div>
+            
+            <!-- Feature 3 -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow fade-in hover-scale">
+                <div class="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-sync-alt text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Real-time Sync</h3>
+                <p class="text-gray-500">
+                    All your files are synchronized in real-time across all your devices, keeping you up-to-date.
+                </p>
+            </div>
+            
+            <!-- Feature 4 -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow fade-in hover-scale">
+                <div class="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-mobile-alt text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Mobile Access</h3>
+                <p class="text-gray-500">
+                    Access your files from any device with our responsive web interface and mobile applications.
+                </p>
+            </div>
+            
+            <!-- Feature 5 -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow fade-in hover-scale">
+                <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-history text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Version History</h3>
+                <p class="text-gray-500">
+                    Access previous versions of your files, allowing you to recover from accidental changes.
+                </p>
+            </div>
+            
+            <!-- Feature 6 -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow fade-in hover-scale">
+                <div class="w-12 h-12 bg-red-100 text-red-600 rounded-xl flex items-center justify-center mb-4">
+                    <i class="fas fa-search text-xl"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Advanced Search</h3>
+                <p class="text-gray-500">
+                    Quickly find any file with our powerful search engine that indexes file contents and metadata.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials Section -->
+<section class="py-16 bg-primary-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+            <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl fade-in">
+                Trusted by Thousands
+            </h2>
+            <p class="mt-4 text-lg text-gray-500 max-w-3xl mx-auto fade-in">
+                See what our users have to say about CloudVault
+            </p>
+        </div>
+        
+        <div class="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Testimonial 1 -->
+            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100 fade-in hover-scale">
+                <div class="flex items-center mb-4">
+                    <div class="text-yellow-400 flex">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">
+                    "CloudVault has transformed how our team collaborates on files. The security features give us peace of mind when sharing sensitive documents."
+                </p>
+                <div class="flex items-center">
+                    <div class="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center text-white">
+                        JS
+                    </div>
+                    <div class="ml-3">
+                        <h4 class="text-sm font-medium text-gray-900">John Smith</h4>
+                        <p class="text-sm text-gray-500">Product Manager at TechCorp</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Testimonial 2 -->
+            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100 fade-in hover-scale">
+                <div class="flex items-center mb-4">
+                    <div class="text-yellow-400 flex">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">
+                    "As a freelancer, I need reliable access to my files wherever I go. CloudVault makes it simple and the interface is so intuitive."
+                </p>
+                <div class="flex items-center">
+                    <div class="h-10 w-10 rounded-full bg-secondary-500 flex items-center justify-center text-white">
+                        AD
+                    </div>
+                    <div class="ml-3">
+                        <h4 class="text-sm font-medium text-gray-900">Alex Davis</h4>
+                        <p class="text-sm text-gray-500">Freelance Designer</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Testimonial 3 -->
+            <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100 fade-in hover-scale">
+                <div class="flex items-center mb-4">
+                    <div class="text-yellow-400 flex">
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star"></i>
+                        <i class="fas fa-star-half-alt"></i>
+                    </div>
+                </div>
+                <p class="text-gray-600 mb-4">
+                    "I've tried many cloud storage solutions, but CloudVault offers the best combination of security, ease of use, and value for money."
+                </p>
+                <div class="flex items-center">
+                    <div class="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center text-white">
+                        SJ
+                    </div>
+                    <div class="ml-3">
+                        <h4 class="text-sm font-medium text-gray-900">Sarah Johnson</h4>
+                        <p class="text-sm text-gray-500">Small Business Owner</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-16 bg-primary-600">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 class="text-3xl font-extrabold text-white sm:text-4xl fade-in">
+            Ready to get started?
+        </h2>
+        <p class="mt-4 text-xl text-primary-100 max-w-3xl mx-auto fade-in">
+            Join thousands of users who trust CloudVault with their valuable data.
+        </p>
+        <div class="mt-8 fade-in">
+            <a href="{% url 'accounts:signup' %}" 
+               class="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-primary-700 bg-white hover:bg-gray-50 hover-scale">
+                <i class="fas fa-rocket mr-2"></i> Sign Up for Free
+            </a>
+        </div>
+        <p class="mt-4 text-sm text-primary-200 fade-in">
+            No credit card required. Free plan includes 1GB of storage.
+        </p>
+    </div>
+</section>
+{% endblock %} 
