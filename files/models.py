@@ -78,7 +78,12 @@ class FileItem(models.Model):
     
     def get_readable_file_size(self):
         """Convert file size to readable format (KB, MB, GB)"""
-        size = self.file_size
+        return self.get_readable_size(self.file_size)
+    
+    @staticmethod
+    def get_readable_size(size_in_bytes):
+        """Static method to convert any size in bytes to readable format"""
+        size = size_in_bytes
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size < 1024 or unit == 'GB':
                 return f"{size:.1f} {unit}"

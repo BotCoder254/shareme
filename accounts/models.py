@@ -17,6 +17,8 @@ class UserProfile(models.Model):
     bio = models.TextField(max_length=500, blank=True)
     storage_used = models.BigIntegerField(default=0)  # Used storage in bytes
     storage_limit = models.BigIntegerField(default=1073741824)  # Default 1GB limit (in bytes)
+    storage_limit_enforced = models.BooleanField(default=True)  # Whether to enforce storage limits
+    last_storage_update = models.DateTimeField(auto_now=True)  # Track when storage was last updated
     
     def __str__(self):
         return f"{self.user.username}'s Profile"
@@ -51,6 +53,20 @@ class UserProfile(models.Model):
             if size < 1024 or unit == 'GB':
                 return f"{size:.1f} {unit}"
             size /= 1024
+    
+    def has_storage_available(self, required_bytes=0):
+        """Check if user has enough storage available"""
+        if not self.storage_limit_enforced:
+            return True
+        return (self.storage_used + required_bytes) <= self.storage_limit
+    
+    def update_storage_usage(self):
+        """Recalculate and update storage usage based on actual files"""
+        from files.models import FileItem
+        total_size = FileItem.objects.filter(user=self.user).aggregate(models.Sum('file_size'))['file_size__sum'] or 0
+        self.storage_used = total_size
+        self.save(update_fields=['storage_used', 'last_storage_update'])
+        return self.storage_used
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

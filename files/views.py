@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink
-from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm
+from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm
 import os
 from django.urls import reverse
 from django.utils import timezone
@@ -61,30 +61,69 @@ def file_detail(request, file_id):
 @login_required
 def file_upload(request):
     """View to upload a new file"""
+    folders = Folder.objects.filter(user=request.user, parent=None).prefetch_related('subfolders')
+    
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
         if form.is_valid():
+            # Check if the user has enough storage space
+            file_size = request.FILES['file'].size
+            profile = request.user.profile
+            
+            if not profile.has_storage_available(file_size):
+                messages.error(
+                    request, 
+                    f"You don't have enough storage space. Available: {profile.get_available_storage_readable()}, "
+                    f"Required: {FileItem.get_readable_size(file_size)}"
+                )
+                return render(request, 'files/file_upload.html', {
+                    'form': form,
+                    'categories': FileCategory.objects.all(),
+                    'current_folder': request.POST.get('folder', None),
+                    'folders': folders,
+                })
+                
+            # User has enough space, create the file
             file_instance = form.save(commit=False)
             file_instance.user = request.user
+            file_instance.file_size = file_size
             
-            # Get file size
-            file_instance.file_size = request.FILES['file'].size
-            
+            # Handle folder assignment
+            folder_id = request.POST.get('folder')
+            if folder_id:
+                try:
+                    folder = Folder.objects.get(id=folder_id, user=request.user)
+                    file_instance.folder = folder
+                except Folder.DoesNotExist:
+                    pass
+                
             file_instance.save()
             
             # Update user's storage used
-            profile = request.user.profile
             profile.storage_used += file_instance.file_size
             profile.save()
             
             messages.success(request, "File uploaded successfully!")
+            
+            # Return to the appropriate folder
+            if folder_id:
+                return redirect('files:folder_contents', folder_id=folder_id)
             return redirect('files:file_list')
     else:
         form = FileUploadForm()
+        folder_id = request.GET.get('folder')
+        current_folder = None
+        if folder_id:
+            try:
+                current_folder = Folder.objects.get(id=folder_id, user=request.user)
+            except Folder.DoesNotExist:
+                pass
     
     context = {
         'form': form,
         'categories': FileCategory.objects.all(),
+        'current_folder': current_folder,
+        'folders': folders,
     }
     
     return render(request, 'files/file_upload.html', context)
@@ -95,15 +134,23 @@ def file_delete(request, file_id):
     file = get_object_or_404(FileItem, id=file_id, user=request.user)
     
     if request.method == 'POST':
-        # Remove file size from user's storage
-        profile = request.user.profile
-        profile.storage_used -= file.file_size
-        profile.save()
+        # Capture file size before deletion
+        file_size = file.file_size
         
         # Delete file
         file.delete()
         
+        # Remove file size from user's storage
+        profile = request.user.profile
+        profile.storage_used = max(0, profile.storage_used - file_size)  # Prevent negative values
+        profile.save()
+        
         messages.success(request, "File deleted successfully!")
+        
+        # Check if redirecting to a folder
+        folder_id = request.GET.get('folder')
+        if folder_id:
+            return redirect(f'files:file_list?folder={folder_id}')
         return redirect('files:file_list')
     
     context = {
@@ -173,6 +220,12 @@ def file_download(request, file_id):
         Q(id=file_id, user=request.user) | 
         Q(id=file_id, shared_with__shared_with=request.user)
     )
+    
+    # Check if the user is over storage limit and enforce if needed
+    # We allow downloads of already stored files even if over limit
+    profile = request.user.profile
+    if profile.storage_limit_enforced and profile.get_storage_usage_percentage() >= 100:
+        messages.warning(request, "You have reached your storage limit. Some features may be restricted until you free up space.")
     
     file_path = file.file.path
     if os.path.exists(file_path):
@@ -273,129 +326,94 @@ def folder_share(request, folder_id):
 @login_required
 def create_folder(request):
     """View to create a new folder"""
-    parent_id = request.GET.get('parent')
+    parent_folder_id = request.GET.get('parent')
     parent_folder = None
     
-    if parent_id:
-        parent_folder = get_object_or_404(Folder, id=parent_id, user=request.user)
+    if parent_folder_id:
+        try:
+            parent_folder = Folder.objects.get(id=parent_folder_id, user=request.user)
+        except Folder.DoesNotExist:
+            pass
     
     if request.method == 'POST':
-        folder_name = request.POST.get('folder_name')
-        parent_id = request.POST.get('parent')
-        
-        if not folder_name:
-            messages.error(request, "Folder name is required.")
+        form = FolderForm(request.POST)
+        if form.is_valid():
+            folder = form.save(commit=False)
+            folder.user = request.user
+            
+            # Set parent folder if provided
+            if parent_folder:
+                folder.parent = parent_folder
+                
+            folder.save()
+            messages.success(request, "Folder created successfully!")
+            
+            # Handle redirect
+            next_url = request.GET.get('next')
+            if next_url:
+                return redirect(next_url)
+                
+            # Redirect to the parent folder if applicable
+            if parent_folder:
+                return redirect('files:folder_contents', folder_id=parent_folder.id)
+                
             return redirect('files:file_list')
-        
-        # Check if folder already exists
-        if parent_id:
-            parent = get_object_or_404(Folder, id=parent_id, user=request.user)
-            if Folder.objects.filter(user=request.user, name=folder_name, parent=parent).exists():
-                messages.error(request, f"Folder '{folder_name}' already exists in this location.")
-                return redirect('files:file_list')
-        else:
-            if Folder.objects.filter(user=request.user, name=folder_name, parent__isnull=True).exists():
-                messages.error(request, f"Folder '{folder_name}' already exists in the root directory.")
-                return redirect('files:file_list')
-        
-        # Create the folder
-        folder = Folder(
-            user=request.user,
-            name=folder_name
-        )
-        
-        if parent_id:
-            folder.parent = get_object_or_404(Folder, id=parent_id, user=request.user)
-        
-        folder.save()
-        messages.success(request, f"Folder '{folder_name}' created successfully!")
-        
-        # Redirect back to the parent folder if it exists
-        if parent_id:
-            return redirect(f'files:file_list?folder={parent_id}')
-        return redirect('files:file_list')
+    else:
+        form = FolderForm()
     
     context = {
+        'form': form,
         'parent_folder': parent_folder,
     }
     
     return render(request, 'files/create_folder.html', context)
 
 @login_required
-def folder_delete(request, folder_id):
-    """View to delete a folder and all its contents"""
+def folder_detail(request, folder_id):
+    """View folder details and manage subfolders"""
     folder = get_object_or_404(Folder, id=folder_id, user=request.user)
-    parent_id = folder.parent.id if folder.parent else None
+    subfolders = folder.subfolders.all()
+    files = FileItem.objects.filter(folder=folder, user=request.user)
     
-    if request.method == 'POST':
-        # Get all files in this folder and subfolders
-        files = folder.get_all_files()
-        
-        # Calculate total file size
-        total_size = sum(file.file_size for file in files)
-        
-        # Update user's storage used
-        profile = request.user.profile
-        profile.storage_used -= total_size
-        profile.save()
-        
-        # Delete folder (will cascade to all subfolders and files)
-        folder.delete()
-        
-        messages.success(request, f"Folder '{folder.name}' and all its contents deleted successfully!")
-        
-        # Redirect back to the parent folder if it exists
-        if parent_id:
-            return redirect(f'files:file_list?folder={parent_id}')
-        return redirect('files:file_list')
+    # Get folder path
+    folder_path = []
+    current = folder
+    while current:
+        folder_path.insert(0, current)
+        current = current.parent
     
     context = {
         'folder': folder,
+        'subfolders': subfolders,
+        'files': files,
+        'folder_path': folder_path,
     }
     
-    return render(request, 'files/folder_delete.html', context)
+    return render(request, 'files/folder_detail.html', context)
 
 @login_required
 def folder_contents(request, folder_id):
-    """View to show the contents of a folder"""
-    # Check if the user owns the folder or it's shared with them
-    folder = get_object_or_404(
-        Folder, 
-        Q(id=folder_id, user=request.user) | 
-        Q(id=folder_id, shared_with__shared_with=request.user)
-    )
+    """View to display the contents of a folder"""
+    folder = get_object_or_404(Folder, id=folder_id, user=request.user)
+    files = FileItem.objects.filter(folder=folder, user=request.user)
+    subfolders = folder.subfolders.all()
     
-    # Get all files in this folder
-    files = FileItem.objects.filter(folder=folder)
-    
-    # Get all subfolders in this folder
-    subfolders = Folder.objects.filter(parent=folder)
-    
-    # Build breadcrumb navigation
-    breadcrumbs = []
+    # Get folder breadcrumb path
+    folder_path = []
     current = folder
     while current:
-        breadcrumbs.insert(0, current)
+        folder_path.insert(0, current)
         current = current.parent
-    
-    # Get shared status if the folder doesn't belong to the user
-    is_shared = False
-    if folder.user != request.user:
-        shared_folder = SharedFolder.objects.get(folder=folder, shared_with=request.user)
-        is_shared = True
-        access_level = shared_folder.access_level
     
     context = {
         'folder': folder,
         'files': files,
-        'folders': subfolders,
-        'breadcrumbs': breadcrumbs,
-        'is_shared': is_shared,
-        'access_level': access_level if is_shared else None,
-        'current_folder': folder,
+        'subfolders': subfolders,
+        'folder_path': folder_path,
+        'categories': FileCategory.objects.all(),
     }
     
-    return render(request, 'files/file_list.html', context)
+    return render(request, 'files/folder_contents.html', context)
 
 @login_required
 def create_file_share_link(request, file_id):
@@ -571,3 +589,37 @@ def delete_share_link(request, link_id):
     }
     
     return render(request, 'files/delete_share_link.html', context)
+
+@login_required
+def folder_delete(request, folder_id):
+    """View to delete a folder and all its contents"""
+    folder = get_object_or_404(Folder, id=folder_id, user=request.user)
+    parent_id = folder.parent.id if folder.parent else None
+    
+    if request.method == 'POST':
+        # Get all files in this folder and subfolders
+        files = folder.get_all_files()
+        
+        # Calculate total file size
+        total_size = sum(file.file_size for file in files)
+        
+        # Update user's storage used
+        profile = request.user.profile
+        profile.storage_used -= total_size
+        profile.save()
+        
+        # Delete folder (will cascade to all subfolders and files)
+        folder.delete()
+        
+        messages.success(request, f"Folder '{folder.name}' and all its contents deleted successfully!")
+        
+        # Redirect back to the parent folder if it exists
+        if parent_id:
+            return redirect('files:folder_contents', folder_id=parent_id)
+        return redirect('files:file_list')
+    
+    context = {
+        'folder': folder,
+    }
+    
+    return render(request, 'files/folder_delete.html', context)

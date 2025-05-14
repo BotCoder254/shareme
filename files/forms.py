@@ -1,14 +1,16 @@
 from django import forms
 from .models import FileItem, FileCategory, Folder, FileShareLink
 from django.utils import timezone
+import os
 
 class FileUploadForm(forms.ModelForm):
     """Form for uploading files"""
     class Meta:
         model = FileItem
-        fields = ['title', 'description', 'file', 'category', 'is_public']
+        fields = ['file', 'title', 'description', 'category', 'is_public']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 3}),
+            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-input'}),
+            'category': forms.Select(attrs={'class': 'form-input'}),
         }
         
     def __init__(self, *args, **kwargs):
@@ -18,11 +20,31 @@ class FileUploadForm(forms.ModelForm):
         self.fields['is_public'].label = "Make file public"
         self.fields['is_public'].help_text = "Public files can be accessed by anyone with the link"
 
+    def clean_file(self):
+        file = self.cleaned_data.get('file')
+        if file:
+            # Check file size (max 50MB)
+            if file.size > 52428800:  # 50MB in bytes
+                raise forms.ValidationError("File size must be under 50MB.")
+                
+            # Check file extension
+            ext = os.path.splitext(file.name)[1].lower()
+            allowed_extensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.zip', '.jpg', '.jpeg', '.png', '.gif']
+            if ext not in allowed_extensions:
+                raise forms.ValidationError(f"File type not supported. Allowed types: {', '.join(allowed_extensions)}")
+                
+        return file
+
 class FileCategoryForm(forms.ModelForm):
     """Form for creating file categories"""
     class Meta:
         model = FileCategory
         fields = ['name', 'icon', 'color']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input'}),
+            'icon': forms.TextInput(attrs={'class': 'form-input'}),
+            'color': forms.TextInput(attrs={'class': 'form-input'}),
+        }
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -34,19 +56,23 @@ class FolderForm(forms.ModelForm):
     """Form for creating and editing folders"""
     class Meta:
         model = Folder
-        fields = ['name', 'parent']
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Enter folder name'})
+        }
         
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if not name:
+            raise forms.ValidationError("Folder name is required.")
         
-        if user:
-            # Only show folders owned by this user
-            self.fields['parent'].queryset = Folder.objects.filter(user=user)
-            
-        self.fields['parent'].required = False
-        self.fields['parent'].label = "Parent Folder"
-        self.fields['parent'].help_text = "Leave empty to create in root folder"
+        # Check for invalid characters
+        invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
+        for char in invalid_chars:
+            if char in name:
+                raise forms.ValidationError(f"Folder name cannot contain: {' '.join(invalid_chars)}")
+        
+        return name
 
 class ShareLinkForm(forms.ModelForm):
     """Form for creating file/folder share links"""

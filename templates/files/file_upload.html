@@ -23,16 +23,56 @@
     
     /* Ensure consistent form field heights */
     .form-input {
-        height: 42px;
+        height: 42px !important;
+        display: block !important;
+        width: 100% !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+        line-height: 1.5 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 0.375rem !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
     }
     
     select.form-input {
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+        background-position: right 0.5rem center !important;
+        background-repeat: no-repeat !important;
+        background-size: 1.5em 1.5em !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: none !important;
+        appearance: none !important;
+        padding-right: 2.5rem !important;
     }
     
     textarea.form-input {
-        min-height: 84px;
+        min-height: 84px !important;
+        height: auto !important;
+        resize: vertical !important;
+    }
+    
+    .form-input:focus {
+        outline: none !important;
+        ring: 2px !important;
+        ring-color: rgba(99, 102, 241, 0.5) !important;
+        border-color: rgba(99, 102, 241, 0.8) !important;
+    }
+    
+    /* Fix checkbox styling */
+    input[type="checkbox"] {
+        width: 1rem !important;
+        height: 1rem !important;
+        color: #6366f1 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 0.25rem !important;
+    }
+    
+    input[type="checkbox"]:focus {
+        ring: 2px !important;
+        ring-offset: 2px !important;
+        ring-color: rgba(99, 102, 241, 0.5) !important;
     }
 </style>
 {% endblock %}
@@ -130,7 +170,7 @@
                                 File Title <span class="text-red-500">*</span>
                             </label>
                             <input type="text" name="title" id="{{ form.title.id_for_label }}" required
-                                   class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md form-input">
+                                   class="form-input">
                         </div>
                         
                         <div>
@@ -139,7 +179,7 @@
                                 Description
                             </label>
                             <textarea name="description" id="{{ form.description.id_for_label }}" rows="3" 
-                                      class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md form-input"></textarea>
+                                      class="form-input"></textarea>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -149,7 +189,7 @@
                                     Category
                                 </label>
                                 <select name="category" id="{{ form.category.id_for_label }}" 
-                                        class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md form-input">
+                                        class="form-input">
                                     <option value="">Select a category</option>
                                     {% for category in form.category.field.queryset %}
                                     <option value="{{ category.id }}">{{ category.name }}</option>
@@ -163,13 +203,24 @@
                                     <i class="fas fa-folder mr-2"></i>
                                     Folder
                                 </label>
-                                <select name="folder" id="folder" 
-                                        class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md form-input">
+                                <select name="folder" id="folder" class="form-input">
                                     <option value="">Root Directory</option>
-                                    {% for folder in request.user.folders.all %}
-                                    <option value="{{ folder.id }}">{{ folder.get_path }}</option>
+                                    {% for folder in folders %}
+                                    <option value="{{ folder.id }}" {% if current_folder.id == folder.id %}selected{% endif %}>{{ folder.name }}</option>
+                                        {% for subfolder in folder.subfolders.all %}
+                                        <option value="{{ subfolder.id }}" {% if current_folder.id == subfolder.id %}selected{% endif %}>&nbsp;&nbsp;↳ {{ subfolder.name }}</option>
+                                            {% for subsubfolder in subfolder.subfolders.all %}
+                                            <option value="{{ subsubfolder.id }}" {% if current_folder.id == subsubfolder.id %}selected{% endif %}>&nbsp;&nbsp;&nbsp;&nbsp;↳ {{ subsubfolder.name }}</option>
+                                            {% endfor %}
+                                        {% endfor %}
                                     {% endfor %}
                                 </select>
+                                <div class="mt-2 flex items-center justify-between">
+                                    <p class="text-xs text-gray-500">Files will be saved in the selected folder</p>
+                                    <a href="{% url 'files:create_folder' %}?next={% url 'files:file_upload' %}" class="text-xs font-medium text-primary-600 hover:text-primary-500">
+                                        <i class="fas fa-folder-plus mr-1"></i> Create New Folder
+                                    </a>
+                                </div>
                             </div>
                             {% endif %}
                         </div>
@@ -207,21 +258,63 @@
         
         <div class="mt-6 bg-white shadow rounded-lg p-6 fade-in">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Storage Information</h3>
-            <div class="flex items-center">
-                <div class="w-full max-w-xs">
-                    <div class="relative pt-1">
-                        <div class="overflow-hidden h-2 text-xs flex rounded bg-gray-200">
-                            <div style="width: {{ user.profile.get_storage_usage_percentage }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center {% if user.profile.get_storage_usage_percentage > 90 %}bg-red-500{% elif user.profile.get_storage_usage_percentage > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}"></div>
+            
+            <!-- Real-time Storage Usage -->
+            <div class="mb-4">
+                <div class="flex items-center mb-1">
+                    <div class="w-full max-w-full">
+                        <div class="relative pt-1">
+                            <div class="overflow-hidden h-3 text-xs flex rounded bg-gray-200">
+                                <!-- Current Usage -->
+                                <div id="progressBarUsage" 
+                                     data-storage-used="{{ user.profile.storage_used }}"
+                                     data-storage-limit="{{ user.profile.storage_limit }}"
+                                     data-limit-enforced="{% if user.profile.storage_limit_enforced %}true{% else %}false{% endif %}"
+                                     style="width: {{ user.profile.get_storage_usage_percentage }}%;" 
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center 
+                                     {% if user.profile.get_storage_usage_percentage > 90 %}bg-red-500{% elif user.profile.get_storage_usage_percentage > 70 %}bg-yellow-500{% else %}bg-primary-500{% endif %}">
+                                </div>
+                                <!-- Projected Additional Usage (initially hidden) -->
+                                <div id="progressBarProjected" style="width: 0%;" 
+                                     class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-400">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm text-gray-600">{{ user.profile.get_readable_storage_used }} used of {{ user.profile.get_readable_storage_limit }}</p>
-                    <p class="text-xs text-gray-500 mt-1">{{ user.profile.get_storage_usage_percentage }}% used</p>
+                
+                <div class="flex flex-wrap justify-between text-sm mt-2">
+                    <div id="usageText" class="text-gray-600">
+                        Current: {{ user.profile.get_readable_storage_used }} ({{ user.profile.get_storage_usage_percentage }}%)
+                    </div>
+                    <div id="requiredText" class="text-blue-600">
+                        Required: 0 KB
+                    </div>
+                    <div id="availableText" class="text-gray-600">
+                        Available: {{ user.profile.get_available_storage_readable }}
+                    </div>
+                </div>
+                
+                <!-- Storage Warning -->
+                <div id="storageWarning" class="mt-2 bg-red-50 text-red-600 p-3 rounded-md border border-red-200 hidden">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium">
+                                You don't have enough storage space for this file. Please free up some space or request a storage upgrade.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="mt-2">
-                <p class="text-sm text-gray-600">Available: {{ user.profile.get_available_storage_readable }}</p>
+            
+            <div class="text-xs text-gray-500">
+                <p><i class="fas fa-info-circle mr-1"></i> Storage usage is updated in real-time as you upload and delete files.</p>
+                {% if user.profile.storage_limit_enforced %}
+                <p class="mt-1"><i class="fas fa-exclamation-circle mr-1 text-yellow-500"></i> Storage limits are enforced. Uploads will be blocked if you exceed your limit.</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -239,6 +332,19 @@
         const fileName = document.getElementById('fileName');
         const fileSize = document.getElementById('fileSize');
         const progressBar = document.querySelector('.progress-bar');
+        const storageWarning = document.getElementById('storageWarning');
+        
+        // Current user storage info
+        const storageUsed = parseFloat(document.getElementById('progressBarUsage').getAttribute('data-storage-used') || '0');
+        const storageLimit = parseFloat(document.getElementById('progressBarUsage').getAttribute('data-storage-limit') || '0');
+        const limitEnforced = document.getElementById('progressBarUsage').getAttribute('data-limit-enforced') === 'true';
+        
+        // Storage usage elements
+        const usageText = document.getElementById('usageText');
+        const requiredText = document.getElementById('requiredText');
+        const availableText = document.getElementById('availableText');
+        const progressBarUsage = document.getElementById('progressBarUsage');
+        const progressBarProjected = document.getElementById('progressBarProjected');
         
         // Click on browse button
         browseButton.addEventListener('click', function() {
@@ -303,6 +409,9 @@
                 fileName.textContent = file.name;
                 fileSize.textContent = formatFileSize(file.size);
                 
+                // Update storage usage projection
+                updateStorageUsageProjection(file.size);
+                
                 // Simulate upload progress
                 simulateUpload();
                 
@@ -319,6 +428,31 @@
                         });
                     titleInput.value = formattedName;
                 }
+            }
+        }
+        
+        // Update storage usage projection
+        function updateStorageUsageProjection(fileSizeBytes) {
+            const currentUsagePercentage = Math.min(100, parseInt((storageUsed / storageLimit) * 100));
+            const projectedUsageBytes = storageUsed + fileSizeBytes;
+            const projectedUsagePercentage = Math.min(100, parseInt((projectedUsageBytes / storageLimit) * 100));
+            
+            // Update the progress bars
+            progressBarUsage.style.width = currentUsagePercentage + '%';
+            progressBarProjected.style.width = (projectedUsagePercentage - currentUsagePercentage) + '%';
+            
+            // Update text information
+            usageText.textContent = `Current: ${formatFileSize(storageUsed)} (${currentUsagePercentage}%)`;
+            requiredText.textContent = `Required: ${formatFileSize(fileSizeBytes)}`;
+            availableText.textContent = `Available: ${formatFileSize(Math.max(0, storageLimit - storageUsed))}`;
+            
+            // Show warning if exceeding storage limit
+            if (limitEnforced && projectedUsageBytes > storageLimit) {
+                storageWarning.classList.remove('hidden');
+                document.querySelector('button[type="submit"]').disabled = true;
+            } else {
+                storageWarning.classList.add('hidden');
+                document.querySelector('button[type="submit"]').disabled = false;
             }
         }
         

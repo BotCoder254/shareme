@@ -108,6 +108,28 @@
                         <a href="{% url 'core:dashboard' %}" class="text-gray-500 hover:text-gray-700 mr-4">
                             <i class="fas fa-tachometer-alt mr-1"></i> Dashboard
                         </a>
+                        
+                        <!-- Notification Bell -->
+                        <div class="relative mr-4" x-data="{ open: false }">
+                            <button @click="open = !open" class="text-gray-500 hover:text-gray-700 relative">
+                                <i class="fas fa-bell text-xl"></i>
+                                <span id="notification-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">0</span>
+                            </button>
+                            <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg z-50">
+                                <div class="py-1 rounded-md bg-white shadow-xs max-h-96 overflow-y-auto">
+                                    <div class="px-4 py-2 border-b border-gray-200 flex justify-between items-center">
+                                        <h3 class="text-sm font-medium text-gray-900">Notifications</h3>
+                                        <a href="{% url 'notifications:list' %}" class="text-xs text-primary-600 hover:text-primary-800">View All</a>
+                                    </div>
+                                    <div id="notification-dropdown-content">
+                                        <div class="p-4 text-center text-sm text-gray-500">
+                                            <i class="fas fa-spinner fa-spin mr-2"></i> Loading notifications...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="relative" x-data="{ open: false }">
                             <button @click="open = !open" class="flex text-sm border-2 border-transparent rounded-full focus:outline-none focus:border-gray-300 transition duration-150 ease-in-out">
                                 {% if user.profile.avatar %}
@@ -222,6 +244,140 @@
                 stagger: 0.1,
                 ease: "power2.out"
             });
+            
+            // Notification system for authenticated users
+            if (document.getElementById('notification-count')) {
+                // Function to fetch unread notification count
+                function fetchNotificationCount() {
+                    fetch('/notifications/unread-count/')
+                        .then(response => response.json())
+                        .then(data => {
+                            const countElement = document.getElementById('notification-count');
+                            if (countElement) {
+                                countElement.textContent = data.count;
+                                
+                                // Hide badge if count is 0
+                                if (data.count === 0) {
+                                    countElement.classList.add('hidden');
+                                } else {
+                                    countElement.classList.remove('hidden');
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error fetching notification count:', error));
+                }
+                
+                // Function to load notifications in dropdown
+                function loadNotificationDropdown() {
+                    const dropdownContent = document.getElementById('notification-dropdown-content');
+                    if (dropdownContent) {
+                        fetch('/notifications/?format=json')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.notifications && data.notifications.length > 0) {
+                                    let html = '';
+                                    data.notifications.slice(0, 5).forEach(notification => {
+                                        const readClass = notification.read ? 'bg-white' : 'bg-blue-50';
+                                        html += `
+                                            <a href="/notifications/${notification.id}/" class="block ${readClass} hover:bg-gray-50 px-4 py-3 border-b border-gray-200">
+                                                <div class="flex">
+                                                    <div class="flex-shrink-0">
+                                                        <div class="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                                                            <i class="fas fa-${getNotificationIcon(notification.notification_type)}"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div class="ml-3">
+                                                        <p class="text-sm font-medium text-gray-900">${notification.title}</p>
+                                                        <p class="text-xs text-gray-500 truncate">${notification.message.substring(0, 60)}${notification.message.length > 60 ? '...' : ''}</p>
+                                                        <p class="text-xs text-gray-400 mt-1">${timeSince(new Date(notification.created_at))}</p>
+                                                    </div>
+                                                    ${!notification.read ? '<span class="ml-2 h-2 w-2 bg-primary-500 rounded-full"></span>' : ''}
+                                                </div>
+                                            </a>
+                                        `;
+                                    });
+                                    
+                                    if (data.notifications.length > 5) {
+                                        html += `
+                                            <div class="px-4 py-2 text-center">
+                                                <a href="/notifications/" class="text-xs text-primary-600 hover:text-primary-800">
+                                                    View all ${data.notifications.length} notifications
+                                                </a>
+                                            </div>
+                                        `;
+                                    } else if (data.notifications.length === 0) {
+                                        html = `
+                                            <div class="p-4 text-center text-sm text-gray-500">
+                                                No notifications yet
+                                            </div>
+                                        `;
+                                    }
+                                    
+                                    dropdownContent.innerHTML = html;
+                                } else {
+                                    dropdownContent.innerHTML = `
+                                        <div class="p-4 text-center text-sm text-gray-500">
+                                            No notifications yet
+                                        </div>
+                                    `;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error loading notifications:', error);
+                                dropdownContent.innerHTML = `
+                                    <div class="p-4 text-center text-sm text-gray-500">
+                                        <i class="fas fa-exclamation-circle text-red-500 mr-2"></i>
+                                        Failed to load notifications
+                                    </div>
+                                `;
+                            });
+                    }
+                }
+                
+                // Helper function to get icon based on notification type
+                function getNotificationIcon(type) {
+                    switch(type) {
+                        case 'file_upload': return 'file-upload';
+                        case 'file_share': return 'share-alt';
+                        case 'storage_warning': return 'exclamation-triangle';
+                        case 'folder_create': return 'folder-plus';
+                        default: return 'bell';
+                    }
+                }
+                
+                // Helper function to format time since
+                function timeSince(date) {
+                    const seconds = Math.floor((new Date() - date) / 1000);
+                    
+                    let interval = seconds / 31536000;
+                    if (interval > 1) return Math.floor(interval) + " years ago";
+                    
+                    interval = seconds / 2592000;
+                    if (interval > 1) return Math.floor(interval) + " months ago";
+                    
+                    interval = seconds / 86400;
+                    if (interval > 1) return Math.floor(interval) + " days ago";
+                    
+                    interval = seconds / 3600;
+                    if (interval > 1) return Math.floor(interval) + " hours ago";
+                    
+                    interval = seconds / 60;
+                    if (interval > 1) return Math.floor(interval) + " minutes ago";
+                    
+                    return Math.floor(seconds) + " seconds ago";
+                }
+                
+                // Initialize notification system
+                fetchNotificationCount();
+                
+                // Add event listener for bell icon click
+                document.querySelector('[x-data="{ open: false }"] button').addEventListener('click', function() {
+                    loadNotificationDropdown();
+                });
+                
+                // Poll for new notifications every 30 seconds
+                setInterval(fetchNotificationCount, 30000);
+            }
         });
     </script>
     

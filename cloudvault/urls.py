@@ -25,6 +25,7 @@ urlpatterns = [
     path('', include('core.urls')),
     path('accounts/', include('accounts.urls')),
     path('files/', include('files.urls')),
+    path('notifications/', include('notifications.urls')),
     path('share/<uuid:uuid>/', access_share_link, name='access_share_link'),
 ]
 
