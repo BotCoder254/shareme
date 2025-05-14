@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Collaborating on {{ file.name }}{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+    .ql-editor {
+        min-height: 300px;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    .users-list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .user-cursor {
+        position: absolute;
+        width: 2px;
+        height: 20px;
+        background-color: var(--user-color);
+        pointer-events: none;
+    }
+    .user-label {
+        position: absolute;
+        background-color: var(--user-color);
+        color: white;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        transform: translateY(-100%);
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6 flex justify-between items-center">
+        <a href="{% url 'files:file_detail' file_id=file.id %}" class="text-blue-500 hover:text-blue-700">
+            <i class="fas fa-arrow-left mr-2"></i> Back to File
+        </a>
+        
+        {% if session.created_by == request.user or file.user == request.user %}
+        <form method="post" action="{% url 'files:end_collaboration' session_id=session.id %}">
+            {% csrf_token %}
+            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                <i class="fas fa-times-circle mr-2"></i> End Collaboration
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if messages %}
+    <div class="mb-6">
+        {% for message in messages %}
+            <div class="bg-{{ message.tags }}-100 border-l-4 border-{{ message.tags }}-500 text-{{ message.tags }}-700 p-4 mb-2" role="alert">
+                <p>{{ message }}</p>
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h1 class="text-2xl font-bold mb-2">Collaborating on: {{ file.name }}</h1>
+        <p class="text-gray-600 mb-2">
+            <span class="mr-3"><i class="fas fa-user mr-1"></i> Owner: {{ file.user.username }}</span>
+            <span><i class="fas fa-clock mr-1"></i> Session started: {{ session.created_at|date:"M d, Y H:i" }}</span>
+        </p>
+        <p class="text-sm bg-blue-100 text-blue-800 p-2 rounded">
+            <i class="fas fa-info-circle mr-1"></i> 
+            Any changes will be automatically saved as a new version when the session ends.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Editor area (3/4 width on large screens) -->
+        <div class="lg:col-span-3">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Document Editor</h2>
+                <div id="editor-container">
+                    <!-- Quill editor will be initialized here -->
+                </div>
+                <div class="flex justify-between mt-4">
+                    <div class="text-sm text-gray-500">
+                        <span id="sync-status"><i class="fas fa-check-circle text-green-500 mr-1"></i> All changes synced</span>
+                    </div>
+                    <button id="save-button" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                        <i class="fas fa-save mr-2"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Participants sidebar (1/4 width on large screens) -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold mb-4">Participants</h2>
+                <div class="users-list space-y-3" id="participants-list">
+                    {% for participant in participants %}
+                    <div class="flex items-center space-x-3 p-2 {% if participant.user == session.created_by %}bg-yellow-50 border border-yellow-200 rounded{% endif %}">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
+                            {{ participant.user.username|first|upper }}
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-900">{{ participant.user.username }}</p>
+                            <p class="text-xs text-gray-500">
+                                {% if participant.user == session.created_by %}
+                                <span class="text-yellow-600"><i class="fas fa-crown mr-1"></i> Session creator</span>
+                                {% elif participant.user == file.user %}
+                                <span class="text-blue-600"><i class="fas fa-user-shield mr-1"></i> File owner</span>
+                                {% else %}
+                                <span><i class="fas fa-user mr-1"></i> Collaborator</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-4">Chat</h2>
+                <div id="chat-messages" class="h-64 overflow-y-auto mb-4 p-3 bg-gray-50 rounded-md"></div>
+                <div class="flex">
+                    <input type="text" id="chat-input" class="flex-grow border border-gray-300 rounded-l-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Type a message...">
+                    <button id="send-message" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Store session info
+    const sessionId = "{{ session.id }}";
+    const userId = "{{ request.user.id }}";
+    const username = "{{ request.user.username }}";
+    const fileId = "{{ file.id }}";
+    
+    // Initialize editor
+    const quill = new Quill('#editor-container', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                [{ 'indent': '-1'}, { 'indent': '+1' }],
+                ['link', 'image'],
+                ['clean']
+            ]
+        },
+        placeholder: 'Start collaborating...',
+    });
+    
+    // Generate a random color for this user
+    const userColors = [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA5A5', '#A5D8FF', 
+        '#D5A5FF', '#FFCEA5', '#A5FFD6', '#FFD5A5', '#A5BDFF'
+    ];
+    const userColor = userColors[Math.floor(Math.random() * userColors.length)];
+    document.documentElement.style.setProperty('--user-color', userColor);
+    
+    // Placeholder for socket connection - in a real implementation, 
+    // you would connect to your WebSocket server
+    // For demo purposes, we'll simulate some collaborative functionality
+    
+    // Simulate receiving document content
+    setTimeout(() => {
+        // This would normally come from the server
+        quill.setContents({"ops":[{"insert":"This is a collaborative document.\nYou can edit this text in real-time with other participants.\n\n"}]});
+        
+        document.getElementById('sync-status').innerHTML = 
+            '<i class="fas fa-check-circle text-green-500 mr-1"></i> Connected to session';
+    }, 1000);
+    
+    // Simulate cursor tracking
+    quill.on('text-change', function() {
+        document.getElementById('sync-status').innerHTML = 
+            '<i class="fas fa-sync text-yellow-500 mr-1 fa-spin"></i> Syncing changes...';
+            
+        // Simulate syncing delay
+        setTimeout(() => {
+            document.getElementById('sync-status').innerHTML = 
+                '<i class="fas fa-check-circle text-green-500 mr-1"></i> All changes synced';
+        }, 700);
+    });
+    
+    // Simulate chat functionality
+    document.getElementById('send-message').addEventListener('click', function() {
+        const input = document.getElementById('chat-input');
+        const message = input.value.trim();
+        
+        if (message) {
+            addChatMessage(username, message, true);
+            input.value = '';
+            
+            // Simulate response
+            if (Math.random() > 0.7) {
+                setTimeout(() => {
+                    const responses = [
+                        "Good point!",
+                        "I agree with your changes.",
+                        "Let's add more content to this section.",
+                        "This looks great so far!",
+                        "Should we add another paragraph here?"
+                    ];
+                    const otherUsers = [
+                        {% for participant in participants %}
+                        {% if participant.user != request.user %}
+                        "{{ participant.user.username }}",
+                        {% endif %}
+                        {% endfor %}
+                    ];
+                    
+                    if (otherUsers.length > 0) {
+                        const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
+                        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                        addChatMessage(randomUser, randomResponse, false);
+                    }
+                }, 2000);
+            }
+        }
+    });
+    
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('send-message').click();
+        }
+    });
+    
+    function addChatMessage(sender, text, isMe) {
+        const chatMessages = document.getElementById('chat-messages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-2';
+        
+        messageDiv.innerHTML = `
+            <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                <div class="max-w-3/4 ${isMe ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'} rounded-lg px-3 py-2">
+                    <p class="text-xs font-bold">${sender}</p>
+                    <p class="text-sm">${text}</p>
+                </div>
+            </div>
+        `;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // Save button functionality
+    document.getElementById('save-button').addEventListener('click', function() {
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+        
+        // Simulate saving
+        setTimeout(() => {
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-save mr-2"></i> Save Changes';
+            
+            // Show success message
+            const saveMessage = document.createElement('div');
+            saveMessage.className = 'bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6';
+            saveMessage.role = 'alert';
+            saveMessage.innerHTML = '<p>Changes saved successfully as a new version!</p>';
+            
+            document.querySelector('.container').insertBefore(saveMessage, document.querySelector('.grid'));
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                saveMessage.remove();
+            }, 3000);
+        }, 1500);
+    });
+
+    // Simulate cursor positions of other participants
+    function simulateOtherUserCursors() {
+        // Clear any existing cursors
+        document.querySelectorAll('.user-cursor').forEach(el => el.remove());
+        
+        {% for participant in participants %}
+        {% if participant.user != request.user %}
+        // Only create cursors for other users
+        setTimeout(() => {
+            const editorBounds = document.querySelector('.ql-editor').getBoundingClientRect();
+            const randomX = Math.random() * (editorBounds.width - 20) + 10;
+            const randomY = Math.random() * (editorBounds.height - 40) + 20;
+            
+            // Create cursor element
+            const cursorEl = document.createElement('div');
+            cursorEl.className = 'user-cursor';
+            cursorEl.style.setProperty('--user-color', userColors[{{ forloop.counter }} % userColors.length]);
+            cursorEl.style.left = `${randomX}px`;
+            cursorEl.style.top = `${randomY}px`;
+            
+            // Create label element
+            const labelEl = document.createElement('div');
+            labelEl.className = 'user-label';
+            labelEl.textContent = '{{ participant.user.username }}';
+            labelEl.style.setProperty('--user-color', userColors[{{ forloop.counter }} % userColors.length]);
+            
+            cursorEl.appendChild(labelEl);
+            document.querySelector('.ql-editor').appendChild(cursorEl);
+        }, {{ forloop.counter }} * 500);
+        {% endif %}
+        {% endfor %}
+    }
+    
+    // Simulate cursor movements periodically
+    setInterval(simulateOtherUserCursors, 5000);
+    simulateOtherUserCursors();
+</script>
+{% endblock %} 

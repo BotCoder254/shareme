@@ -278,6 +278,7 @@ class SharedFile(models.Model):
     access_level = models.CharField(max_length=10, choices=[
         ('view', 'View'),
         ('edit', 'Edit'),
+        ('comment', 'Comment'),  # New access level for commenting only
     ], default='view')
     shared_at = models.DateTimeField(default=timezone.now)
     
@@ -294,6 +295,7 @@ class SharedFolder(models.Model):
     access_level = models.CharField(max_length=10, choices=[
         ('view', 'View'),
         ('edit', 'Edit'),
+        ('comment', 'Comment'),  # New access level for commenting only
     ], default='view')
     shared_at = models.DateTimeField(default=timezone.now)
     
@@ -340,4 +342,65 @@ class FileShareLink(models.Model):
     def increment_access_count(self):
         """Increment the access count and save"""
         self.access_count += 1
+        self.save()
+
+# New models for Collaboration Tools
+
+class Comment(models.Model):
+    """Model for storing comments on files"""
+    file = models.ForeignKey(FileItem, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='file_comments')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    content = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"Comment by {self.user.username} on {self.file.title}"
+    
+    def get_replies(self):
+        """Get all replies to this comment"""
+        return self.replies.all()
+
+class CollaborationSession(models.Model):
+    """Model for tracking real-time collaboration sessions"""
+    file = models.ForeignKey(FileItem, on_delete=models.CASCADE, related_name='collaboration_sessions')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_sessions')
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Collaboration on {self.file.title}"
+    
+    def end_session(self):
+        """End the collaboration session"""
+        self.active = False
+        self.ended_at = timezone.now()
+        self.save()
+    
+    def add_participant(self, user):
+        """Add a participant to the collaboration session"""
+        if not CollaborationParticipant.objects.filter(session=self, user=user).exists():
+            CollaborationParticipant.objects.create(session=self, user=user)
+
+class CollaborationParticipant(models.Model):
+    """Model for tracking participants in a collaboration session"""
+    session = models.ForeignKey(CollaborationSession, on_delete=models.CASCADE, related_name='participants')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collaboration_sessions')
+    joined_at = models.DateTimeField(default=timezone.now)
+    last_active = models.DateTimeField(default=timezone.now)
+    
+    class Meta:
+        unique_together = ('session', 'user')
+    
+    def __str__(self):
+        return f"{self.user.username} in session on {self.session.file.title}"
+    
+    def update_activity(self):
+        """Update the last active timestamp"""
+        self.last_active = timezone.now()
         self.save()

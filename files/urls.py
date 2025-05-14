@@ -55,4 +55,12 @@ urlpatterns = [
     path('<uuid:file_id>/versions/<uuid:version_id>/download/', views.file_version_download, name='file_version_download'),
     path('<int:file_id>/versions/<int:version_id>/delete/', views.file_version_delete, name='file_version_delete'),
     path('<uuid:file_id>/versions/<uuid:version_id>/delete/', views.file_version_delete, name='file_version_delete'),
+
+    # New URLs for collaboration features
+    path('<int:file_id>/comments/', views.file_comments, name='file_comments'),
+    path('comments/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
+    path('comments/<int:comment_id>/edit/', views.edit_comment, name='edit_comment'),
+    path('<int:file_id>/collaborate/', views.start_collaboration, name='start_collaboration'),
+    path('collaboration/<int:session_id>/join/', views.join_collaboration, name='join_collaboration'),
+    path('collaboration/<int:session_id>/end/', views.end_collaboration, name='end_collaboration'),
 ] 

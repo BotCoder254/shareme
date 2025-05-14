@@ -4,8 +4,8 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion
-from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession
+from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm, CommentForm, CollaborationSessionForm
 import os
 from django.urls import reverse
 from django.utils import timezone
@@ -66,12 +66,20 @@ def file_detail(request, file_id):
     versions = file.versions.all().order_by('-version_number')
     current_version = file.get_current_version()
     
+    # Get active collaboration session if any
+    active_session = CollaborationSession.objects.filter(file=file, active=True).first()
+    
+    # Get comment count
+    comment_count = Comment.objects.filter(file=file).count()
+    
     context = {
         'file': file,
         'shared_with': shared_with,
         'versions': versions,
         'current_version': current_version,
         'version_count': versions.count(),
+        'active_session': active_session,
+        'comment_count': comment_count,
     }
     
     return render(request, 'files/file_detail.html', context)
@@ -80,6 +88,9 @@ def file_detail(request, file_id):
 def file_upload(request):
     """View to upload a new file"""
     folders = Folder.objects.filter(user=request.user, parent=None).prefetch_related('subfolders')
+    current_folder = None
+    existing_file = None
+    form = FileUploadForm()
     
     if request.method == 'POST':
         form = FileUploadForm(request.POST, request.FILES)
@@ -94,11 +105,28 @@ def file_upload(request):
                     f"You don't have enough storage space. Available: {profile.get_available_storage_readable()}, "
                     f"Required: {FileItem.get_readable_size(file_size)}"
                 )
+                # Try to get current folder for the context
+                folder_id = request.POST.get('folder')
+                if folder_id:
+                    try:
+                        current_folder = Folder.objects.get(id=folder_id, user=request.user)
+                    except Folder.DoesNotExist:
+                        pass
+                
+                # Try to get existing file for the context
+                existing_file_id = request.POST.get('existing_file')
+                if existing_file_id:
+                    try:
+                        existing_file = FileItem.objects.get(id=existing_file_id, user=request.user)
+                    except FileItem.DoesNotExist:
+                        pass
+                        
                 return render(request, 'files/file_upload.html', {
                     'form': form,
                     'categories': FileCategory.objects.all(),
-                    'current_folder': request.POST.get('folder', None),
+                    'current_folder': current_folder,
                     'folders': folders,
+                    'existing_file': existing_file,
                 })
             
             # Check if this is a new version of an existing file
@@ -835,3 +863,200 @@ def file_version_delete(request, file_id, version_id):
     }
     
     return render(request, 'files/file_version_delete.html', context)
+
+# New views for collaboration features
+
+@login_required
+def file_comments(request, file_id):
+    """View to show and add comments for a file"""
+    file = get_object_or_404(FileItem, id=file_id)
+    
+    # Check if user has access to the file
+    has_access = (
+        file.user == request.user or 
+        file.is_public or 
+        SharedFile.objects.filter(file=file, shared_with=request.user).exists()
+    )
+    
+    if not has_access:
+        messages.error(request, "You don't have permission to view this file.")
+        return redirect('files:file_list')
+    
+    # Get all root comments (no parent)
+    comments = Comment.objects.filter(file=file, parent=None)
+    
+    # Handle new comment submission
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.file = file
+            comment.user = request.user
+            
+            # Check if it's a reply to another comment
+            parent_id = request.POST.get('parent_id')
+            if parent_id:
+                try:
+                    parent_comment = Comment.objects.get(id=parent_id, file=file)
+                    comment.parent = parent_comment
+                except Comment.DoesNotExist:
+                    pass
+                
+            comment.save()
+            messages.success(request, "Comment added successfully!")
+            return redirect('files:file_comments', file_id=file.id)
+    else:
+        form = CommentForm()
+    
+    context = {
+        'file': file,
+        'comments': comments,
+        'form': form,
+    }
+    
+    return render(request, 'files/file_comments.html', context)
+
+@login_required
+def delete_comment(request, comment_id):
+    """Delete a comment"""
+    comment = get_object_or_404(Comment, id=comment_id)
+    
+    # Security check: only the comment author or the file owner can delete the comment
+    if comment.user != request.user and comment.file.user != request.user:
+        messages.error(request, "You don't have permission to delete this comment.")
+        return redirect('files:file_comments', file_id=comment.file.id)
+    
+    if request.method == 'POST':
+        file_id = comment.file.id
+        comment.delete()
+        messages.success(request, "Comment deleted successfully!")
+        return redirect('files:file_comments', file_id=file_id)
+    
+    context = {
+        'comment': comment,
+    }
+    
+    return render(request, 'files/delete_comment.html', context)
+
+@login_required
+def edit_comment(request, comment_id):
+    """Edit a comment"""
+    comment = get_object_or_404(Comment, id=comment_id)
+    
+    # Security check: only the comment author can edit the comment
+    if comment.user != request.user:
+        messages.error(request, "You don't have permission to edit this comment.")
+        return redirect('files:file_comments', file_id=comment.file.id)
+    
+    if request.method == 'POST':
+        form = CommentForm(request.POST, instance=comment)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Comment updated successfully!")
+            return redirect('files:file_comments', file_id=comment.file.id)
+    else:
+        form = CommentForm(instance=comment)
+    
+    context = {
+        'form': form,
+        'comment': comment,
+    }
+    
+    return render(request, 'files/edit_comment.html', context)
+
+@login_required
+def start_collaboration(request, file_id):
+    """Start a new collaboration session on a file"""
+    file = get_object_or_404(FileItem, id=file_id)
+    
+    # Check if user has edit access to the file
+    has_edit_access = (
+        file.user == request.user or 
+        SharedFile.objects.filter(file=file, shared_with=request.user, access_level='edit').exists()
+    )
+    
+    if not has_edit_access:
+        messages.error(request, "You don't have permission to start a collaboration session on this file.")
+        return redirect('files:file_detail', file_id=file.id)
+    
+    # Check if there's already an active session
+    active_session = CollaborationSession.objects.filter(file=file, active=True).first()
+    
+    if active_session:
+        # Join existing session
+        active_session.add_participant(request.user)
+        return redirect('files:join_collaboration', session_id=active_session.id)
+    
+    # Create new session
+    if request.method == 'POST':
+        form = CollaborationSessionForm(request.POST)
+        if form.is_valid():
+            session = form.save(commit=True, file=file, user=request.user)
+            messages.success(request, "Collaboration session started!")
+            return redirect('files:join_collaboration', session_id=session.id)
+    else:
+        form = CollaborationSessionForm()
+    
+    context = {
+        'form': form,
+        'file': file,
+    }
+    
+    return render(request, 'files/start_collaboration.html', context)
+
+@login_required
+def join_collaboration(request, session_id):
+    """Join an existing collaboration session"""
+    session = get_object_or_404(CollaborationSession, id=session_id)
+    
+    # Check if the session is still active
+    if not session.active:
+        messages.error(request, "This collaboration session has ended.")
+        return redirect('files:file_detail', file_id=session.file.id)
+    
+    # Check if user has access to the file
+    file = session.file
+    has_access = (
+        file.user == request.user or 
+        file.is_public or 
+        SharedFile.objects.filter(file=file, shared_with=request.user).exists()
+    )
+    
+    if not has_access:
+        messages.error(request, "You don't have permission to join this collaboration session.")
+        return redirect('files:file_list')
+    
+    # Add user as participant if not already
+    session.add_participant(request.user)
+    
+    # Get all participants
+    participants = session.participants.all()
+    
+    context = {
+        'session': session,
+        'file': file,
+        'participants': participants,
+    }
+    
+    return render(request, 'files/collaboration_session.html', context)
+
+@login_required
+def end_collaboration(request, session_id):
+    """End an active collaboration session"""
+    session = get_object_or_404(CollaborationSession, id=session_id)
+    
+    # Security check: only the session creator or file owner can end the session
+    if session.created_by != request.user and session.file.user != request.user:
+        messages.error(request, "You don't have permission to end this collaboration session.")
+        return redirect('files:join_collaboration', session_id=session.id)
+    
+    if request.method == 'POST':
+        session.end_session()
+        messages.success(request, "Collaboration session ended.")
+        return redirect('files:file_detail', file_id=session.file.id)
+    
+    context = {
+        'session': session,
+    }
+    
+    return render(request, 'files/end_collaboration.html', context)

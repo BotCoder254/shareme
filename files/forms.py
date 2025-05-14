@@ -1,5 +1,5 @@
 from django import forms
-from .models import FileItem, FileCategory, Folder, FileShareLink
+from .models import FileItem, FileCategory, Folder, FileShareLink, Comment, CollaborationSession
 from django.utils import timezone
 import os
 
@@ -139,3 +139,33 @@ class ShareLinkForm(forms.ModelForm):
             self.add_error('custom_expiry_date', "The expiration date must be in the future")
             
         return cleaned_data 
+
+class CommentForm(forms.ModelForm):
+    """Form for creating and editing comments"""
+    content = forms.CharField(
+        widget=forms.Textarea(attrs={'rows': 3, 'placeholder': 'Add your comment here...', 'class': 'form-input rounded-md shadow-sm mt-1 block w-full'}),
+        label="",
+        required=True
+    )
+    
+    class Meta:
+        model = Comment
+        fields = ['content']
+
+class CollaborationSessionForm(forms.ModelForm):
+    """Form for creating a new collaboration session"""
+    class Meta:
+        model = CollaborationSession
+        fields = []  # No fields needed, just the file ID which will be passed separately
+        
+    def save(self, commit=True, file=None, user=None):
+        instance = super().save(commit=False)
+        instance.file = file
+        instance.created_by = user
+        
+        if commit:
+            instance.save()
+            # Also add the creator as a participant
+            instance.add_participant(user)
+        
+        return instance 
