@@ -91,3 +91,11 @@ def delete_notification(request, notification_id):
         return JsonResponse({'status': 'success'})
     
     return redirect('notifications:list')
+
+@login_required
+@require_POST
+def mark_all_read(request):
+    """Mark all notifications as read"""
+    Notification.objects.filter(recipient=request.user, read=False).update(read=True)
+    messages.success(request, "All notifications marked as read.")
+    return redirect('notifications:list')

@@ -92,4 +92,12 @@ urlpatterns = [
     path('audit-logs/', views.audit_logs, name='audit_logs'),
     path('audit-logs/<int:log_id>/', views.audit_log_detail, name='audit_log_detail'),
     path('audit-logs/export/', views.export_audit_logs, name='export_audit_logs'),
+    
+    # Bulk Operations URLs
+    path('bulk/action/', views.bulk_action, name='bulk_action'),
+    path('bulk/task-status/<str:task_id>/', views.bulk_task_status, name='bulk_task_status'),
+    path('bulk/download/<str:filename>/', views.bulk_download_get, name='bulk_download_get'),
+    path('bulk/folders-for-move/', views.get_folders_for_move, name='get_folders_for_move'),
+    path('bulk/upload/', views.bulk_upload_form, name='bulk_upload_form'),
+    path('bulk/process-upload/', views.process_bulk_upload, name='process_bulk_upload'),
 ] 

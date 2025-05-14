@@ -150,3 +150,26 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'core:dashboard'
 LOGOUT_REDIRECT_URL = 'core:home'
 LOGIN_URL = 'accounts:login'
+
+# Celery Configuration Settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# For development, use the file system broker
+CELERY_BROKER_URL = 'filesystem://'
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'data_folder_in': os.path.join(BASE_DIR, 'celery', 'broker', 'in'),
+    'data_folder_out': os.path.join(BASE_DIR, 'celery', 'broker', 'out'),
+    'data_folder_processed': os.path.join(BASE_DIR, 'celery', 'broker', 'processed'),
+}
+
+# Create broker folders if they don't exist
+for folder in ['celery/broker/in', 'celery/broker/out', 'celery/broker/processed']:
+    os.makedirs(os.path.join(BASE_DIR, folder), exist_ok=True)
+
+# File upload settings
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB - larger files will be stored on disk

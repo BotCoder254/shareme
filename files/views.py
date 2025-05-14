@@ -12,6 +12,7 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 import uuid
+import shutil
 
 @login_required
 def file_list(request):
@@ -263,10 +264,10 @@ def file_delete(request, file_id):
         # Check if redirecting to a folder
         folder_id = request.GET.get('folder')
         if folder_id:
-            return redirect(f'files:file_list?folder={folder_id}')
+            return redirect(reverse('files:file_list') + f'?folder={folder_id}')
         
         if request.GET.get('trash') == '1':
-            return redirect('files:file_list?trash=1')
+            return redirect(reverse('files:file_list') + '?trash=1')
             
         return redirect('files:file_list')
     
@@ -285,7 +286,7 @@ def file_restore(request, file_id):
     if request.method == 'POST':
         file.restore()
         messages.success(request, "File restored from trash!")
-        return redirect('files:file_list?trash=1')
+        return redirect(reverse('files:file_list') + '?trash=1')
     
     context = {
         'file': file,
@@ -1515,3 +1516,312 @@ def export_audit_logs(request):
         ])
     
     return response
+
+# Bulk Operations Views
+
+@login_required
+def bulk_action(request):
+    """Handle bulk operations on files"""
+    if request.method != 'POST':
+        return redirect('files:file_list')
+    
+    # Get the selected files from the form
+    file_ids = request.POST.getlist('selected_files')
+    action = request.POST.get('bulk_action')
+    
+    if not file_ids:
+        messages.warning(request, "No files selected for the bulk action.")
+        return redirect('files:file_list')
+    
+    # Convert file_ids to a list of integers for task processing
+    file_ids = [int(fid) for fid in file_ids if fid.isdigit()]
+    
+    # Get current folder for redirect later
+    current_folder_id = request.POST.get('current_folder')
+    
+    # Process the bulk action
+    if action == 'delete':
+        from .tasks import bulk_delete_files
+        # Run the task asynchronously
+        task = bulk_delete_files.delay(file_ids, request.user.id)
+        messages.success(request, f"Delete operation started for {len(file_ids)} file(s). This may take a moment.")
+    
+    elif action == 'download':
+        from .tasks import bulk_download_files
+        # Run the task asynchronously
+        task = bulk_download_files.delay(file_ids, request.user.id)
+        messages.success(request, f"Preparing download for {len(file_ids)} file(s). You'll be notified when it's ready.")
+    
+    elif action == 'move':
+        destination_folder_id = request.POST.get('destination_folder')
+        if not destination_folder_id:
+            messages.error(request, "Please select a destination folder.")
+            return redirect('files:file_list')
+        
+        from .tasks import bulk_move_files
+        # Run the task asynchronously
+        task = bulk_move_files.delay(file_ids, destination_folder_id, request.user.id)
+        messages.success(request, f"Move operation started for {len(file_ids)} file(s). This may take a moment.")
+    
+    # Store the task_id in the session for status checking
+    if not request.session.get('bulk_tasks'):
+        request.session['bulk_tasks'] = {}
+    
+    request.session['bulk_tasks'][action] = {
+        'task_id': task.id,
+        'status': 'PENDING',
+        'total_files': len(file_ids),
+        'started_at': timezone.now().isoformat()
+    }
+    request.session.modified = True
+    
+    # Redirect back to the appropriate folder
+    if current_folder_id:
+        return redirect('files:folder_contents', folder_id=current_folder_id)
+    return redirect('files:file_list')
+
+@login_required
+def bulk_task_status(request, task_id):
+    """Check the status of a bulk operation task"""
+    from celery.result import AsyncResult
+    
+    result = AsyncResult(task_id)
+    
+    if result.ready():
+        try:
+            task_result = result.get()
+            if task_result.get('status') == 'success':
+                data = {
+                    'status': 'SUCCESS',
+                    'result': task_result
+                }
+                
+                # Special handling for bulk download
+                if 'zip_path' in task_result:
+                    # Set up a session variable to track the download
+                    request.session['bulk_download'] = {
+                        'path': task_result['zip_path'],
+                        'temp_dir': task_result['temp_dir'],
+                        'filename': task_result['filename'],
+                        'created_at': timezone.now().isoformat()
+                    }
+                    request.session.modified = True
+                    
+                    # Add download URL to response
+                    data['download_url'] = reverse('files:bulk_download_get', kwargs={'filename': task_result['filename']})
+            else:
+                data = {
+                    'status': 'FAILURE',
+                    'error': task_result.get('message', 'Unknown error')
+                }
+        except Exception as e:
+            data = {
+                'status': 'FAILURE',
+                'error': str(e)
+            }
+    else:
+        data = {
+            'status': result.state,
+            'info': {
+                'current': 0,
+                'total': 1,
+                'percent': 0
+            }
+        }
+    
+    return JsonResponse(data)
+
+@login_required
+def bulk_download_get(request, filename):
+    """Serve the bulk download ZIP file"""
+    download_info = request.session.get('bulk_download')
+    
+    if not download_info or not filename or filename != download_info.get('filename'):
+        messages.error(request, "Download not found or expired.")
+        return redirect('files:file_list')
+    
+    # Send the file as a response
+    file_path = download_info['path']
+    if os.path.exists(file_path):
+        with open(file_path, 'rb') as f:
+            response = HttpResponse(f.read(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            # Clean up the temp directory after sending the file
+            temp_dir = download_info.get('temp_dir')
+            if temp_dir and os.path.exists(temp_dir):
+                # Schedule cleanup for after the response is sent
+                import threading
+                def cleanup_temp():
+                    import time
+                    # Wait a bit to ensure the file is fully sent
+                    time.sleep(5)
+                    try:
+                        shutil.rmtree(temp_dir)
+                    except Exception:
+                        pass
+                
+                # Start cleanup thread
+                threading.Thread(target=cleanup_temp).start()
+            
+            # Clear the session variable
+            del request.session['bulk_download']
+            request.session.modified = True
+            
+            return response
+    
+    messages.error(request, "Download file not found.")
+    return redirect('files:file_list')
+
+@login_required
+def get_folders_for_move(request):
+    """Get a list of folders for the bulk move operation"""
+    folders = Folder.objects.filter(user=request.user).values('id', 'name', 'parent')
+    
+    # Organize folders in a hierarchical structure
+    def build_folder_tree(folders, parent=None):
+        result = []
+        for folder in folders:
+            if folder['parent'] == parent:
+                children = build_folder_tree(folders, folder['id'])
+                if children:
+                    folder['children'] = children
+                result.append(folder)
+        return result
+    
+    folder_tree = build_folder_tree(list(folders))
+    
+    return JsonResponse({
+        'folders': folder_tree
+    })
+
+@login_required
+def bulk_upload_form(request):
+    """Show the multi-file upload form"""
+    folders = Folder.objects.filter(user=request.user)
+    
+    # Get current folder if specified
+    current_folder = None
+    folder_id = request.GET.get('folder')
+    if folder_id:
+        try:
+            current_folder = Folder.objects.get(id=folder_id, user=request.user)
+        except Folder.DoesNotExist:
+            pass
+    
+    # Get categories for the form
+    categories = FileCategory.objects.all()
+    
+    context = {
+        'folders': folders,
+        'current_folder': current_folder,
+        'categories': categories,
+    }
+    
+    return render(request, 'files/bulk_upload.html', context)
+
+@login_required
+def process_bulk_upload(request):
+    """Process multiple file uploads"""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+    
+    try:
+        files = request.FILES.getlist('files[]')
+        category_id = request.POST.get('category')
+        folder_id = request.POST.get('folder')
+        is_public = request.POST.get('is_public') == 'on'
+        
+        if not files:
+            return JsonResponse({'status': 'error', 'message': 'No files provided'})
+        
+        # Get the total size of all files
+        total_size = sum(f.size for f in files)
+        
+        # Check if user has enough storage
+        profile = request.user.profile
+        if not profile.has_storage_available(total_size):
+            return JsonResponse({
+                'status': 'error',
+                'message': f"Not enough storage space. Available: {profile.get_available_storage_readable()}, Required: {FileItem.get_readable_size(total_size)}"
+            })
+        
+        # Get category and folder
+        category = None
+        folder = None
+        
+        if category_id:
+            try:
+                category = FileCategory.objects.get(id=category_id)
+            except FileCategory.DoesNotExist:
+                pass
+        
+        if folder_id:
+            try:
+                folder = Folder.objects.get(id=folder_id, user=request.user)
+            except Folder.DoesNotExist:
+                pass
+        
+        # Process each file
+        results = []
+        for uploaded_file in files:
+            try:
+                # Create the file record
+                file_item = FileItem(
+                    user=request.user,
+                    title=os.path.splitext(uploaded_file.name)[0],
+                    file=uploaded_file,
+                    file_size=uploaded_file.size,
+                    category=category,
+                    folder=folder,
+                    is_public=is_public
+                )
+                file_item.save()
+                
+                # Create the initial version
+                FileVersion.create_version(
+                    file_item=file_item,
+                    version_file=uploaded_file,
+                    user=request.user
+                )
+                
+                # Update user's storage used
+                profile.storage_used += file_item.file_size
+                
+                # Log the upload
+                AuditLog.log(
+                    action='upload',
+                    user=request.user,
+                    obj=file_item,
+                    details={'bulk_operation': True},
+                    success=True
+                )
+                
+                results.append({
+                    'name': uploaded_file.name,
+                    'size': file_item.get_readable_file_size(),
+                    'status': 'success',
+                    'id': file_item.id
+                })
+            except Exception as e:
+                results.append({
+                    'name': uploaded_file.name,
+                    'size': FileItem.get_readable_size(uploaded_file.size),
+                    'status': 'error',
+                    'error': str(e)
+                })
+        
+        # Save the profile after all uploads
+        profile.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Successfully uploaded {len(results)} files',
+            'results': results
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error processing uploads: {str(e)}'
+        })
