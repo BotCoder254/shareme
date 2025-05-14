@@ -7,6 +7,8 @@ from django.contrib.auth.hashers import check_password
 import math
 from pathlib import Path
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 def get_file_path(instance, filename):
     """Generate a unique file path for the uploaded file"""
@@ -428,3 +430,87 @@ class CollaborationParticipant(models.Model):
         """Update the last active timestamp"""
         self.last_active = timezone.now()
         self.save()
+
+class AuditLog(models.Model):
+    """Model for tracking system actions for security and audit purposes"""
+    ACTION_TYPES = (
+        ('login', 'User Login'),
+        ('logout', 'User Logout'),
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+        ('share', 'Share'),
+        ('unshare', 'Unshare'),
+        ('download', 'Download'),
+        ('upload', 'Upload'),
+        ('collaborate', 'Collaborate'),
+        ('admin', 'Admin Action'),
+        ('security', 'Security Event'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs')
+    timestamp = models.DateTimeField(default=timezone.now)
+    action = models.CharField(max_length=20, choices=ACTION_TYPES)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    object_type = models.CharField(max_length=255, blank=True, null=True)
+    object_id = models.CharField(max_length=255, blank=True, null=True)
+    details = models.JSONField(null=True, blank=True)
+    success = models.BooleanField(default=True)
+    
+    # For linking to specific objects (optional)
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
+    object_pk = models.PositiveIntegerField(null=True, blank=True)
+    content_object = GenericForeignKey('content_type', 'object_pk')
+    
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'Audit Log'
+        verbose_name_plural = 'Audit Logs'
+        indexes = [
+            models.Index(fields=['action']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['user']),
+        ]
+    
+    def __str__(self):
+        username = self.user.username if self.user else 'Anonymous'
+        return f"{username} - {self.get_action_display()} - {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+    
+    @classmethod
+    def log(cls, action, user=None, request=None, obj=None, details=None, success=True):
+        """Helper method to log an action"""
+        try:
+            log_entry = cls(
+                user=user,
+                action=action,
+                success=success,
+                details=details or {}
+            )
+            
+            if request:
+                log_entry.ip_address = cls.get_client_ip(request)
+                log_entry.user_agent = request.META.get('HTTP_USER_AGENT', '')
+                
+            if obj:
+                log_entry.object_type = obj.__class__.__name__
+                log_entry.object_id = str(obj.pk)
+                log_entry.content_type = ContentType.objects.get_for_model(obj)
+                log_entry.object_pk = obj.pk
+                
+            log_entry.save()
+            return log_entry
+        except Exception as e:
+            # Fail silently - we never want logging to break functionality
+            print(f"Error creating audit log: {str(e)}")
+            return None
+    
+    @staticmethod
+    def get_client_ip(request):
+        """Get client IP address from request object"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0]
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+        return ip

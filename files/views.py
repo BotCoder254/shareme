@@ -4,7 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant, AuditLog
 from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm, CommentForm, CollaborationSessionForm, ShareFileForm, ShareFolderForm
 import os
 from django.urls import reverse
@@ -1381,3 +1381,137 @@ def file_unshare(request, file_id):
     }
     
     return render(request, 'files/file_unshare.html', context)
+
+# Audit Log Views
+@login_required
+def audit_logs(request):
+    """View to display audit logs for admins and users"""
+    # Regular users can only see their own logs
+    if not request.user.is_staff:
+        logs = AuditLog.objects.filter(user=request.user)
+    else:
+        logs = AuditLog.objects.all()
+    
+    # Filtering
+    action_filter = request.GET.get('action')
+    if action_filter:
+        logs = logs.filter(action=action_filter)
+    
+    user_filter = request.GET.get('user')
+    if user_filter:
+        logs = logs.filter(user__username__icontains=user_filter)
+    
+    date_from = request.GET.get('date_from')
+    if date_from:
+        logs = logs.filter(timestamp__gte=date_from)
+    
+    date_to = request.GET.get('date_to')
+    if date_to:
+        logs = logs.filter(timestamp__lte=date_to)
+    
+    success_filter = request.GET.get('success')
+    if success_filter in ['true', 'false']:
+        logs = logs.filter(success=(success_filter == 'true'))
+    
+    object_type_filter = request.GET.get('object_type')
+    if object_type_filter:
+        logs = logs.filter(object_type=object_type_filter)
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(logs, 25)  # Show 25 logs per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get unique object types for filter dropdown
+    object_types = AuditLog.objects.values_list('object_type', flat=True).distinct()
+    
+    context = {
+        'page_obj': page_obj,
+        'action_types': dict(AuditLog.ACTION_TYPES),
+        'object_types': object_types,
+        'filters': {
+            'action': action_filter,
+            'user': user_filter,
+            'date_from': date_from,
+            'date_to': date_to,
+            'success': success_filter,
+            'object_type': object_type_filter,
+        }
+    }
+    
+    return render(request, 'files/audit_logs.html', context)
+
+@login_required
+def audit_log_detail(request, log_id):
+    """View to show details of a specific audit log entry"""
+    # Regular users can only see their own logs
+    if request.user.is_staff:
+        log = get_object_or_404(AuditLog, id=log_id)
+    else:
+        log = get_object_or_404(AuditLog, id=log_id, user=request.user)
+    
+    context = {
+        'log': log,
+    }
+    
+    return render(request, 'files/audit_log_detail.html', context)
+
+@login_required
+def export_audit_logs(request):
+    """Export audit logs to CSV for admins"""
+    if not request.user.is_staff:
+        messages.error(request, "You don't have permission to export audit logs.")
+        return redirect('files:audit_logs')
+    
+    import csv
+    from django.http import HttpResponse
+    
+    # Filtering (same as audit_logs view)
+    logs = AuditLog.objects.all()
+    
+    action_filter = request.GET.get('action')
+    if action_filter:
+        logs = logs.filter(action=action_filter)
+    
+    user_filter = request.GET.get('user')
+    if user_filter:
+        logs = logs.filter(user__username__icontains=user_filter)
+    
+    date_from = request.GET.get('date_from')
+    if date_from:
+        logs = logs.filter(timestamp__gte=date_from)
+    
+    date_to = request.GET.get('date_to')
+    if date_to:
+        logs = logs.filter(timestamp__lte=date_to)
+    
+    success_filter = request.GET.get('success')
+    if success_filter in ['true', 'false']:
+        logs = logs.filter(success=(success_filter == 'true'))
+    
+    object_type_filter = request.GET.get('object_type')
+    if object_type_filter:
+        logs = logs.filter(object_type=object_type_filter)
+    
+    # Create the HttpResponse object with CSV header
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="audit_logs.csv"'
+    
+    # Create CSV writer
+    writer = csv.writer(response)
+    writer.writerow(['Timestamp', 'User', 'Action', 'Object Type', 'Object ID', 'IP Address', 'Success'])
+    
+    # Add data rows
+    for log in logs:
+        writer.writerow([
+            log.timestamp,
+            log.user.username if log.user else 'Anonymous',
+            log.get_action_display(),
+            log.object_type or '-',
+            log.object_id or '-',
+            log.ip_address or '-',
+            'Yes' if log.success else 'No'
+        ])
+    
+    return response

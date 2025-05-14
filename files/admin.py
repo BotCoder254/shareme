@@ -1,11 +1,13 @@
 from django.contrib import admin
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant, AuditLog
 from django.utils.html import format_html
 from django.utils import timezone
 from django.urls import reverse, path
 from django.http import HttpResponseRedirect
 from django.contrib import messages
 from django.template.response import TemplateResponse
+import json
+from django.utils.safestring import mark_safe
 
 class FolderHierarchyFilter(admin.SimpleListFilter):
     title = 'folder hierarchy'
@@ -367,3 +369,98 @@ run_cleanup_expired_shares.short_description = "Run cleanup for expired shares"
 # Add the action to the appropriate admin models
 SharedFileAdmin.actions += [run_cleanup_expired_shares]
 SharedFolderAdmin.actions += [run_cleanup_expired_shares]
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'user_display', 'action_display', 'object_type', 'object_id', 'ip_address', 'success')
+    list_filter = ('timestamp', 'action', 'success', 'object_type')
+    search_fields = ('user__username', 'ip_address', 'object_type', 'object_id')
+    readonly_fields = ('timestamp', 'user', 'action', 'ip_address', 'user_agent', 'object_type', 'object_id', 'content_type', 'object_pk', 'details_formatted', 'success')
+    date_hierarchy = 'timestamp'
+    list_per_page = 50
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('timestamp', 'user', 'action', 'success')
+        }),
+        ('Request Details', {
+            'fields': ('ip_address', 'user_agent')
+        }),
+        ('Object Information', {
+            'fields': ('object_type', 'object_id', 'content_type', 'object_pk')
+        }),
+        ('Details', {
+            'fields': ('details_formatted',)
+        }),
+    )
+    
+    def user_display(self, obj):
+        if obj.user:
+            return format_html('<a href="{}">{}</a>', 
+                            reverse('admin:auth_user_change', args=[obj.user.id]), 
+                            obj.user.username)
+        return "Anonymous"
+    user_display.short_description = "User"
+    user_display.admin_order_field = 'user__username'
+    
+    def action_display(self, obj):
+        action_colors = {
+            'login': 'green',
+            'logout': 'gray',
+            'create': 'blue',
+            'update': 'blue',
+            'delete': 'red',
+            'share': 'purple',
+            'unshare': 'orange',
+            'download': 'teal',
+            'upload': 'blue',
+            'collaborate': 'indigo',
+            'admin': 'red',
+            'security': 'red',
+        }
+        color = action_colors.get(obj.action, 'gray')
+        return format_html('<span style="color: {};">{}</span>', color, obj.get_action_display())
+    action_display.short_description = "Action"
+    action_display.admin_order_field = 'action'
+    
+    def details_formatted(self, obj):
+        """Format JSON details for better readability"""
+        if not obj.details:
+            return "-"
+        
+        try:
+            # Check if it's already formatted properly
+            details = obj.details
+            
+            # Prepare HTML table
+            html = '<table style="width:100%; border-collapse: collapse;">'
+            html += '<tr><th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2;">Key</th>'
+            html += '<th style="border: 1px solid #ddd; padding: 8px; text-align: left; background-color: #f2f2f2;">Value</th></tr>'
+            
+            for key, value in details.items():
+                # Handle nested dictionaries and lists
+                if isinstance(value, (dict, list)):
+                    value_str = json.dumps(value, indent=2)
+                    value_html = f'<pre style="margin: 0; white-space: pre-wrap;">{value_str}</pre>'
+                else:
+                    value_html = str(value)
+                
+                html += f'<tr><td style="border: 1px solid #ddd; padding: 8px;">{key}</td>'
+                html += f'<td style="border: 1px solid #ddd; padding: 8px;">{value_html}</td></tr>'
+            
+            html += '</table>'
+            return mark_safe(html)
+        except Exception as e:
+            return f"Error displaying details: {str(e)}"
+    details_formatted.short_description = "Details"
+    
+    def has_add_permission(self, request):
+        # Audit logs should only be created automatically, not manually
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        # Audit logs should not be editable
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        # Only superusers can delete audit logs
+        return request.user.is_superuser

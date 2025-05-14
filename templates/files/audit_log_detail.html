@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Log Detail - CloudVault{% endblock %}
+
+{% block content %}
+<div class="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mb-6 flex items-center justify-between">
+        <a href="{% url 'files:audit_logs' %}" class="text-primary-600 hover:text-primary-900 flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Audit Logs
+        </a>
+        {% if user.is_staff %}
+        <a href="{% url 'files:export_audit_logs' %}" class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
+            <i class="fas fa-download mr-2"></i> Export All Logs
+        </a>
+        {% endif %}
+    </div>
+    
+    <div class="bg-white shadow overflow-hidden rounded-lg">
+        <div class="px-6 py-5 bg-gray-50 border-b border-gray-200">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-xl font-semibold text-gray-900 flex items-center">
+                        <i class="fas fa-clipboard-list mr-2 text-primary-500"></i>
+                        Audit Log Details
+                    </h3>
+                    <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                        Detailed information about this security event.
+                    </p>
+                </div>
+                {% if log.success %}
+                    <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <i class="fas fa-check-circle mr-1"></i> Success
+                    </span>
+                {% else %}
+                    <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                        <i class="fas fa-times-circle mr-1"></i> Failed
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="border-t border-gray-200">
+            <dl>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-white">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-clock mr-2 text-gray-400"></i> Timestamp
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ log.timestamp|date:"F j, Y, g:i:s a" }}
+                    </dd>
+                </div>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-user mr-2 text-gray-400"></i> User
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {% if log.user %}
+                            <div class="flex items-center">
+                                <div class="h-9 w-9 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
+                                    {{ log.user.username|first|upper }}
+                                </div>
+                                <div class="ml-3">
+                                    <div class="text-sm font-medium text-gray-900">{{ log.user.username }}</div>
+                                    <div class="text-sm text-gray-500">{{ log.user.email }}</div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                <i class="fas fa-user-secret mr-1"></i> Anonymous
+                            </span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-white">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-tag mr-2 text-gray-400"></i> Action
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {% if log.action == 'login' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                <i class="fas fa-sign-in-alt mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'logout' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                <i class="fas fa-sign-out-alt mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'create' or log.action == 'upload' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                <i class="fas fa-plus-circle mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'update' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                <i class="fas fa-edit mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'delete' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                <i class="fas fa-trash-alt mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'share' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                <i class="fas fa-share-alt mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'unshare' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                                <i class="fas fa-ban mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'download' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-teal-100 text-teal-800">
+                                <i class="fas fa-download mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'collaborate' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                <i class="fas fa-users mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% elif log.action == 'admin' or log.action == 'security' %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                <i class="fas fa-shield-alt mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% else %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                <i class="fas fa-question-circle mr-1"></i> {{ log.get_action_display }}
+                            </span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-cube mr-2 text-gray-400"></i> Object Type
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ log.object_type|default:"—" }}
+                    </dd>
+                </div>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-white">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-key mr-2 text-gray-400"></i> Object ID
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ log.object_id|default:"—" }}
+                    </dd>
+                </div>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-network-wired mr-2 text-gray-400"></i> IP Address
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                        {{ log.ip_address|default:"—" }}
+                    </dd>
+                </div>
+                <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-white">
+                    <dt class="text-sm font-medium text-gray-600 flex items-center">
+                        <i class="fas fa-laptop mr-2 text-gray-400"></i> User Agent
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 break-words">
+                        {{ log.user_agent|default:"—" }}
+                    </dd>
+                </div>
+                {% if log.details %}
+                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                    <dt class="text-sm font-medium text-gray-600 mb-3 flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-gray-400"></i> Details
+                    </dt>
+                    <dd class="mt-1 text-sm text-gray-900">
+                        <div class="bg-white overflow-hidden shadow rounded-lg border border-gray-200">
+                            <div class="px-4 py-4">
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Key
+                                                </th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Value
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            {% for key, value in log.details.items %}
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                    {{ key }}
+                                                </td>
+                                                <td class="px-6 py-4 text-sm text-gray-500">
+                                                    {% if value|stringformat:"s"|length > 100 or value|stringformat:"s"|length < 1 %}
+                                                        <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                                                            <pre class="whitespace-pre-wrap break-words text-xs">{{ value|pprint }}</pre>
+                                                        </div>
+                                                    {% else %}
+                                                        {{ value|stringformat:"s" }}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="2" class="px-6 py-4 text-sm text-gray-500 text-center">
+                                                    No additional details available
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    <!-- Security Notice -->
+    <div class="mt-8 bg-blue-50 p-4 rounded-lg border border-blue-100">
+        <h3 class="font-medium text-blue-800 flex items-center">
+            <i class="fas fa-shield-alt mr-2"></i> Security Information
+        </h3>
+        <p class="text-sm text-blue-700 mt-1">
+            This is a detailed view of a security audit log entry. If you notice any suspicious activity in your account's logs, please contact support immediately.
+        </p>
+    </div>
+</div>
+{% endblock %} 

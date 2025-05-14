@@ -203,6 +203,19 @@
             </div>
         </div>
         
+        <!-- Security Section -->
+        <div class="px-3 py-2">
+            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider" id="security-section">
+                Security
+            </h3>
+            <div class="mt-2 space-y-1">
+                <a href="{% url 'files:audit_logs' %}" class="group flex items-center px-2 py-2 text-sm font-medium rounded-md hover:bg-gray-100 {% if request.resolver_match.url_name == 'audit_logs' %}bg-primary-100 text-primary-800{% else %}text-gray-700{% endif %}">
+                    <i class="fas fa-shield-alt text-gray-400 group-hover:text-gray-500 mr-3 h-6 w-6 flex items-center justify-center"></i>
+                    Audit Logs
+                </a>
+            </div>
+        </div>
+        
         {% if user.is_staff %}
         <!-- Admin Section -->
         <div class="mt-6 mb-4">

@@ -87,4 +87,9 @@ urlpatterns = [
     path('comment/<int:comment_id>/edit/', views.edit_comment, name='edit_comment'),
     path('comment/<uuid:comment_id>/delete/', views.delete_comment, name='delete_comment'),
     path('comment/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
+
+    # Audit Log URLs
+    path('audit-logs/', views.audit_logs, name='audit_logs'),
+    path('audit-logs/<int:log_id>/', views.audit_log_detail, name='audit_log_detail'),
+    path('audit-logs/export/', views.export_audit_logs, name='export_audit_logs'),
 ] 
