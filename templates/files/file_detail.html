@@ -291,6 +291,63 @@
                             <div class="w-full text-center">
                                 <img src="{{ file.file.url }}" alt="{{ file.title }}" class="max-w-full max-h-[400px] object-contain mx-auto shadow-md rounded">
                             </div>
+                            {% elif file.is_video %}
+                            <div class="w-full text-center">
+                                <div class="bg-gray-900 rounded-lg p-2 mb-2 inline-block">
+                                    <video class="w-full max-w-[640px] mx-auto rounded" poster="{{ file.file.url }}?poster=true" playsinline>
+                                        <source src="{{ file.file.url }}" type="video/{{ file.extension|lower }}">
+                                        <!-- Fallback for different formats -->
+                                        {% if file.extension|lower == 'mp4' %}
+                                        <source src="{{ file.file.url }}" type="video/mp4">
+                                        {% elif file.extension|lower == 'webm' %}
+                                        <source src="{{ file.file.url }}" type="video/webm">
+                                        {% elif file.extension|lower == 'ogg' %}
+                                        <source src="{{ file.file.url }}" type="video/ogg">
+                                        {% endif %}
+                                        <!-- Fallback message -->
+                                        <p class="text-white p-4 text-center">Your browser doesn't support HTML5 video. Here's a <a href="{{ file.file.url }}" download class="text-primary-400 underline">link to download</a> the video.</p>
+                                    </video>
+                                </div>
+                                <div class="flex justify-between items-center text-sm text-gray-500 px-2">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-film mr-1 text-primary-500"></i> 
+                                        {{ file.extension|upper }} video
+                                    </span>
+                                    <span>
+                                        {{ file.readable_size }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% elif file.is_audio %}
+                            <div class="w-full text-center">
+                                <div class="bg-gray-100 p-6 rounded-lg mb-4 flex flex-col items-center justify-center">
+                                    <i class="fas fa-music text-5xl text-primary-500 mb-3"></i>
+                                    <h3 class="text-lg font-medium text-gray-800 mb-1">{{ file.title }}</h3>
+                                    <p class="text-sm text-gray-500">{{ file.extension|upper }} audio file</p>
+                                </div>
+                                <audio class="w-full max-w-[500px] mx-auto" controls preload="metadata">
+                                    <source src="{{ file.file.url }}" type="audio/{{ file.extension|lower }}">
+                                    <!-- Fallback for different formats -->
+                                    {% if file.extension|lower == 'mp3' %}
+                                    <source src="{{ file.file.url }}" type="audio/mpeg">
+                                    {% elif file.extension|lower == 'ogg' %}
+                                    <source src="{{ file.file.url }}" type="audio/ogg">
+                                    {% elif file.extension|lower == 'wav' %}
+                                    <source src="{{ file.file.url }}" type="audio/wav">
+                                    {% endif %}
+                                    <!-- Fallback message -->
+                                    <p>Your browser doesn't support HTML5 audio. Here's a <a href="{{ file.file.url }}" download>link to download</a> the audio.</p>
+                                </audio>
+                                <div class="flex justify-between items-center text-sm text-gray-500 mt-2 px-2">
+                                    <span class="flex items-center">
+                                        <i class="fas fa-headphones mr-1 text-primary-500"></i> 
+                                        {{ file.extension|upper }} audio
+                                    </span>
+                                    <span>
+                                        {{ file.readable_size }}
+                                    </span>
+                                </div>
+                            </div>
                             {% else %}
                             <div class="text-center py-6">
                                 <div class="bg-gray-100 p-8 rounded-lg mb-4 inline-flex items-center justify-center">
@@ -343,6 +400,57 @@
 {% block extra_js %}
 <!-- Alpine.js for dropdowns -->
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+{% if file.is_video or file.is_audio %}
+<!-- Plyr.io for enhanced media controls -->
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.3/plyr.css" />
+<script src="https://cdn.plyr.io/3.7.3/plyr.polyfilled.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const players = Plyr.setup('{% if file.is_video %}video{% else %}audio{% endif %}', {
+            controls: [
+                'play-large', 'play', 'progress', 'current-time', 'mute', 
+                'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+            ],
+            settings: ['captions', 'quality', 'speed', 'loop'],
+            resetOnEnd: true,
+            displayDuration: true,
+            keyboard: { focused: true, global: true },
+            tooltips: { controls: true, seek: true },
+            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] }
+        });
+    });
+</script>
+<style>
+    .plyr {
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        border-radius: 0.375rem;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
+    .plyr--audio {
+        max-width: 500px;
+        background-color: #f3f4f6;
+        padding: 1rem;
+    }
+    .plyr--video {
+        max-height: 450px;
+        background-color: #000;
+    }
+    .plyr__control--overlaid {
+        background: rgba(99, 102, 241, 0.8);
+    }
+    .plyr--video .plyr__control:hover,
+    .plyr--video .plyr__control[aria-expanded=true] {
+        background: rgba(99, 102, 241, 0.9);
+    }
+    .plyr--full-ui input[type=range] {
+        color: rgb(99, 102, 241);
+    }
+</style>
+{% endif %}
 {% endblock %}
 
 {% endblock %}
