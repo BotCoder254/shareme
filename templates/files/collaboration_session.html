@@ -3,55 +3,112 @@
 
 {% block title %}Collaborating on {{ file.name }}{% endblock %}
 
-{% block extra_head %}
-<script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
-<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
-<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/lib/codemirror.css">
 <style>
-    .ql-editor {
-        min-height: 300px;
-        max-height: 600px;
-        overflow-y: auto;
+    .CodeMirror {
+        height: 500px;
+        border: 1px solid #ddd;
+        border-radius: 0.375rem;
     }
-    .users-list {
-        max-height: 300px;
-        overflow-y: auto;
+    .collaboration-container {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 1rem;
     }
-    .user-cursor {
+    .chat-container {
+        height: 500px;
+        display: flex;
+        flex-direction: column;
+    }
+    .chat-messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+        background-color: #f9fafb;
+        margin-bottom: 0.5rem;
+    }
+    .chat-input {
+        display: flex;
+    }
+    .chat-input input {
+        flex-grow: 1;
+        margin-right: 0.5rem;
+    }
+    .participant {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0.375rem;
+        background-color: #f3f4f6;
+    }
+    .participant-cursor {
         position: absolute;
         width: 2px;
         height: 20px;
-        background-color: var(--user-color);
-        pointer-events: none;
+        background-color: #3b82f6;
     }
-    .user-label {
+    .participant-label {
         position: absolute;
-        background-color: var(--user-color);
-        color: white;
         font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        transform: translateY(-100%);
+        background-color: #3b82f6;
+        color: white;
+        padding: 2px 4px;
+        border-radius: 2px;
         white-space: nowrap;
+    }
+    .message {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0.375rem;
+    }
+    .message-self {
+        background-color: #dbeafe;
+        margin-left: 20%;
+    }
+    .message-other {
+        background-color: #f3f4f6;
+        margin-right: 20%;
+    }
+    .message-system {
+        background-color: #fffbeb;
+        font-style: italic;
+        text-align: center;
+    }
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+    .message-content {
+        word-break: break-word;
+    }
+    .copy-link-btn {
+        cursor: pointer;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <div class="mb-6 flex justify-between items-center">
-        <a href="{% url 'files:file_detail' file_id=file.id %}" class="text-blue-500 hover:text-blue-700">
-            <i class="fas fa-arrow-left mr-2"></i> Back to File
-        </a>
-        
-        {% if session.created_by == request.user or file.user == request.user %}
-        <form method="post" action="{% url 'files:end_collaboration' session_id=session.id %}">
-            {% csrf_token %}
-            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
-                <i class="fas fa-times-circle mr-2"></i> End Collaboration
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <a href="{% url 'files:file_detail' file_id=file.id %}" class="text-blue-500 hover:text-blue-700">
+                <i class="fas fa-arrow-left mr-2"></i> Back to File
+            </a>
+        </div>
+        <div class="flex space-x-4">
+            <button id="copy-link-btn" class="text-blue-500 hover:text-blue-700 copy-link-btn">
+                <i class="fas fa-link mr-2"></i> Copy Collaboration Link
             </button>
-        </form>
-        {% endif %}
+            {% if can_end %}
+            <a href="{% url 'files:end_collaboration' session_id=session.id %}" class="text-red-500 hover:text-red-700">
+                <i class="fas fa-times-circle mr-2"></i> End Session
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     {% if messages %}
@@ -65,255 +122,346 @@
     {% endif %}
 
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h1 class="text-2xl font-bold mb-2">Collaborating on: {{ file.name }}</h1>
-        <p class="text-gray-600 mb-2">
-            <span class="mr-3"><i class="fas fa-user mr-1"></i> Owner: {{ file.user.username }}</span>
-            <span><i class="fas fa-clock mr-1"></i> Session started: {{ session.created_at|date:"M d, Y H:i" }}</span>
-        </p>
-        <p class="text-sm bg-blue-100 text-blue-800 p-2 rounded">
-            <i class="fas fa-info-circle mr-1"></i> 
-            Any changes will be automatically saved as a new version when the session ends.
-        </p>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <!-- Editor area (3/4 width on large screens) -->
-        <div class="lg:col-span-3">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold mb-4">Document Editor</h2>
-                <div id="editor-container">
-                    <!-- Quill editor will be initialized here -->
-                </div>
-                <div class="flex justify-between mt-4">
-                    <div class="text-sm text-gray-500">
-                        <span id="sync-status"><i class="fas fa-check-circle text-green-500 mr-1"></i> All changes synced</span>
-                    </div>
-                    <button id="save-button" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                        <i class="fas fa-save mr-2"></i> Save Changes
-                    </button>
-                </div>
-            </div>
+        <h1 class="text-2xl font-bold mb-4">
+            <i class="fas fa-users mr-2"></i> Collaborating on {{ file.name }}
+        </h1>
+        <div class="mb-4">
+            <p class="text-gray-600">
+                <span class="mr-3"><i class="fas fa-clock mr-1"></i> Started {{ session.created_at|timesince }} ago by {{ session.started_by.username }}</span>
+                <span><i class="fas fa-users mr-1"></i> {{ participants.count }} active participants</span>
+            </p>
         </div>
         
-        <!-- Participants sidebar (1/4 width on large screens) -->
-        <div class="lg:col-span-1">
-            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-semibold mb-4">Participants</h2>
-                <div class="users-list space-y-3" id="participants-list">
-                    {% for participant in participants %}
-                    <div class="flex items-center space-x-3 p-2 {% if participant.user == session.created_by %}bg-yellow-50 border border-yellow-200 rounded{% endif %}">
-                        <div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold">
-                            {{ participant.user.username|first|upper }}
-                        </div>
-                        <div>
-                            <p class="font-medium text-gray-900">{{ participant.user.username }}</p>
-                            <p class="text-xs text-gray-500">
-                                {% if participant.user == session.created_by %}
-                                <span class="text-yellow-600"><i class="fas fa-crown mr-1"></i> Session creator</span>
-                                {% elif participant.user == file.user %}
-                                <span class="text-blue-600"><i class="fas fa-user-shield mr-1"></i> File owner</span>
-                                {% else %}
-                                <span><i class="fas fa-user mr-1"></i> Collaborator</span>
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+        <div class="collaboration-container">
+            <div class="editor-container">
+                <textarea id="editor">{{ session.content }}</textarea>
             </div>
             
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold mb-4">Chat</h2>
-                <div id="chat-messages" class="h-64 overflow-y-auto mb-4 p-3 bg-gray-50 rounded-md"></div>
-                <div class="flex">
-                    <input type="text" id="chat-input" class="flex-grow border border-gray-300 rounded-l-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Type a message...">
-                    <button id="send-message" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
+            <div class="sidebar">
+                <div class="participants-container mb-4">
+                    <h3 class="text-lg font-semibold mb-2">Participants</h3>
+                    <div id="participants-list">
+                        {% for participant in participants %}
+                        <div class="participant">
+                            <div class="font-medium">
+                                {% if participant.user == current_user %}
+                                <span class="text-blue-500">{{ participant.user.username }} (You)</span>
+                                {% else %}
+                                <span>{{ participant.user.username }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="chat-container">
+                    <h3 class="text-lg font-semibold mb-2">Chat</h3>
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message message-system">
+                            Welcome to the collaboration session! You can chat with other participants here.
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="Type a message..." class="border border-gray-300 rounded-md px-3 py-2">
+                        <button id="send-chat-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/lib/codemirror.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/mode/javascript/javascript.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/mode/htmlmixed/htmlmixed.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/mode/xml/xml.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/mode/css/css.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.3/mode/python/python.js"></script>
 <script>
-    // Store session info
-    const sessionId = "{{ session.id }}";
-    const userId = "{{ request.user.id }}";
-    const username = "{{ request.user.username }}";
-    const fileId = "{{ file.id }}";
-    
-    // Initialize editor
-    const quill = new Quill('#editor-container', {
-        theme: 'snow',
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'color': [] }, { 'background': [] }],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                [{ 'indent': '-1'}, { 'indent': '+1' }],
-                ['link', 'image'],
-                ['clean']
-            ]
-        },
-        placeholder: 'Start collaborating...',
-    });
-    
-    // Generate a random color for this user
-    const userColors = [
-        '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA5A5', '#A5D8FF', 
-        '#D5A5FF', '#FFCEA5', '#A5FFD6', '#FFD5A5', '#A5BDFF'
-    ];
-    const userColor = userColors[Math.floor(Math.random() * userColors.length)];
-    document.documentElement.style.setProperty('--user-color', userColor);
-    
-    // Placeholder for socket connection - in a real implementation, 
-    // you would connect to your WebSocket server
-    // For demo purposes, we'll simulate some collaborative functionality
-    
-    // Simulate receiving document content
-    setTimeout(() => {
-        // This would normally come from the server
-        quill.setContents({"ops":[{"insert":"This is a collaborative document.\nYou can edit this text in real-time with other participants.\n\n"}]});
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize editor
+        const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+            lineNumbers: true,
+            mode: getEditorMode('{{ file.name }}'),
+            theme: 'default',
+            indentUnit: 4,
+            smartIndent: true,
+            lineWrapping: true
+        });
         
-        document.getElementById('sync-status').innerHTML = 
-            '<i class="fas fa-check-circle text-green-500 mr-1"></i> Connected to session';
-    }, 1000);
-    
-    // Simulate cursor tracking
-    quill.on('text-change', function() {
-        document.getElementById('sync-status').innerHTML = 
-            '<i class="fas fa-sync text-yellow-500 mr-1 fa-spin"></i> Syncing changes...';
-            
-        // Simulate syncing delay
-        setTimeout(() => {
-            document.getElementById('sync-status').innerHTML = 
-                '<i class="fas fa-check-circle text-green-500 mr-1"></i> All changes synced';
-        }, 700);
-    });
-    
-    // Simulate chat functionality
-    document.getElementById('send-message').addEventListener('click', function() {
-        const input = document.getElementById('chat-input');
-        const message = input.value.trim();
-        
-        if (message) {
-            addChatMessage(username, message, true);
-            input.value = '';
-            
-            // Simulate response
-            if (Math.random() > 0.7) {
-                setTimeout(() => {
-                    const responses = [
-                        "Good point!",
-                        "I agree with your changes.",
-                        "Let's add more content to this section.",
-                        "This looks great so far!",
-                        "Should we add another paragraph here?"
-                    ];
-                    const otherUsers = [
-                        {% for participant in participants %}
-                        {% if participant.user != request.user %}
-                        "{{ participant.user.username }}",
-                        {% endif %}
-                        {% endfor %}
-                    ];
-                    
-                    if (otherUsers.length > 0) {
-                        const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
-                        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                        addChatMessage(randomUser, randomResponse, false);
-                    }
-                }, 2000);
-            }
+        // Get file extension to determine editor mode
+        function getEditorMode(filename) {
+            const extension = filename.split('.').pop().toLowerCase();
+            const modeMap = {
+                'js': 'javascript',
+                'html': 'htmlmixed',
+                'htm': 'htmlmixed',
+                'css': 'css',
+                'py': 'python',
+                'txt': 'text',
+                'json': 'javascript',
+                'md': 'markdown'
+            };
+            return modeMap[extension] || 'text';
         }
-    });
-    
-    document.getElementById('chat-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('send-message').click();
-        }
-    });
-    
-    function addChatMessage(sender, text, isMe) {
-        const chatMessages = document.getElementById('chat-messages');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'mb-2';
         
-        messageDiv.innerHTML = `
-            <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
-                <div class="max-w-3/4 ${isMe ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'} rounded-lg px-3 py-2">
-                    <p class="text-xs font-bold">${sender}</p>
-                    <p class="text-sm">${text}</p>
-                </div>
-            </div>
-        `;
+        // Set up variables
+        const sessionId = '{{ session.id }}';
+        const currentUser = '{{ current_user.username }}';
+        let participantCursors = {};
+        let updateInterval;
         
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
-    // Save button functionality
-    document.getElementById('save-button').addEventListener('click', function() {
-        this.disabled = true;
-        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
-        
-        // Simulate saving
-        setTimeout(() => {
-            this.disabled = false;
-            this.innerHTML = '<i class="fas fa-save mr-2"></i> Save Changes';
-            
-            // Show success message
-            const saveMessage = document.createElement('div');
-            saveMessage.className = 'bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6';
-            saveMessage.role = 'alert';
-            saveMessage.innerHTML = '<p>Changes saved successfully as a new version!</p>';
-            
-            document.querySelector('.container').insertBefore(saveMessage, document.querySelector('.grid'));
-            
-            // Auto remove after 3 seconds
-            setTimeout(() => {
-                saveMessage.remove();
-            }, 3000);
-        }, 1500);
-    });
-
-    // Simulate cursor positions of other participants
-    function simulateOtherUserCursors() {
-        // Clear any existing cursors
-        document.querySelectorAll('.user-cursor').forEach(el => el.remove());
-        
+        // Initialize participant usernames and colors
+        const participantUsernames = {};
         {% for participant in participants %}
-        {% if participant.user != request.user %}
-        // Only create cursors for other users
-        setTimeout(() => {
-            const editorBounds = document.querySelector('.ql-editor').getBoundingClientRect();
-            const randomX = Math.random() * (editorBounds.width - 20) + 10;
-            const randomY = Math.random() * (editorBounds.height - 40) + 20;
-            
-            // Create cursor element
-            const cursorEl = document.createElement('div');
-            cursorEl.className = 'user-cursor';
-            cursorEl.style.setProperty('--user-color', userColors[{{ forloop.counter }} % userColors.length]);
-            cursorEl.style.left = `${randomX}px`;
-            cursorEl.style.top = `${randomY}px`;
-            
-            // Create label element
-            const labelEl = document.createElement('div');
-            labelEl.className = 'user-label';
-            labelEl.textContent = '{{ participant.user.username }}';
-            labelEl.style.setProperty('--user-color', userColors[{{ forloop.counter }} % userColors.length]);
-            
-            cursorEl.appendChild(labelEl);
-            document.querySelector('.ql-editor').appendChild(cursorEl);
-        }, {{ forloop.counter }} * 500);
+        {% if participant.user.username != current_user.username %}
+        participantUsernames['{{ participant.user.username }}'] = {
+            color: getRandomColor()
+        };
         {% endif %}
         {% endfor %}
-    }
-    
-    // Simulate cursor movements periodically
-    setInterval(simulateOtherUserCursors, 5000);
-    simulateOtherUserCursors();
+        
+        function getRandomColor() {
+            const colors = [
+                '#3b82f6', // blue
+                '#10b981', // green
+                '#f59e0b', // yellow
+                '#ef4444', // red
+                '#8b5cf6', // purple
+                '#ec4899', // pink
+                '#f97316', // orange
+                '#14b8a6'  // teal
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        // Initialize participant cursors
+        function initParticipantCursors() {
+            for (const username in participantUsernames) {
+                const color = participantUsernames[username].color;
+                
+                // Create cursor element
+                const cursorEl = document.createElement('div');
+                cursorEl.className = 'participant-cursor';
+                cursorEl.style.backgroundColor = color;
+                
+                // Create label element
+                const labelEl = document.createElement('div');
+                labelEl.className = 'participant-label';
+                labelEl.style.backgroundColor = color;
+                labelEl.textContent = username;
+                
+                participantCursors[username] = {
+                    cursor: cursorEl,
+                    label: labelEl,
+                    pos: null
+                };
+            }
+        }
+        
+        // Update cursor positions
+        function updateCursorPositions() {
+            for (const username in participantCursors) {
+                const { cursor, label, pos } = participantCursors[username];
+                
+                if (pos) {
+                    // Remove old elements if they exist in DOM
+                    if (cursor.parentNode) {
+                        cursor.parentNode.removeChild(cursor);
+                    }
+                    if (label.parentNode) {
+                        label.parentNode.removeChild(label);
+                    }
+                    
+                    // Add cursor and label to editor
+                    const { line, ch } = pos;
+                    const position = editor.charCoords({ line, ch }, 'local');
+                    
+                    // Position cursor
+                    cursor.style.left = `${position.left}px`;
+                    cursor.style.top = `${position.top}px`;
+                    editor.getWrapperElement().appendChild(cursor);
+                    
+                    // Position label
+                    label.style.left = `${position.left}px`;
+                    label.style.top = `${position.top - 20}px`;
+                    editor.getWrapperElement().appendChild(label);
+                }
+            }
+        }
+        
+        // Send updates to server
+        function sendUpdate() {
+            const content = editor.getValue();
+            const cursor = editor.getCursor();
+            
+            fetch(`/files/collaboration/${sessionId}/update/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    content: content,
+                    cursor_position: {
+                        line: cursor.line,
+                        ch: cursor.ch
+                    }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    updateParticipantsCursors(data.participants);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating collaboration:', error);
+            });
+        }
+        
+        // Update participants' cursors from server data
+        function updateParticipantsCursors(participants) {
+            participants.forEach(participant => {
+                const username = participant.username;
+                
+                if (participantCursors[username] && participant.cursor_position) {
+                    participantCursors[username].pos = {
+                        line: participant.cursor_position.line,
+                        ch: participant.cursor_position.ch
+                    };
+                }
+            });
+            
+            updateCursorPositions();
+        }
+        
+        // Handle chat messages
+        function setupChat() {
+            const chatInput = document.getElementById('chat-input');
+            const sendChatBtn = document.getElementById('send-chat-btn');
+            const chatMessages = document.getElementById('chat-messages');
+            
+            function sendChatMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+                
+                fetch(`/files/collaboration/${sessionId}/chat/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        addChatMessage(data.message.user, data.message.content, data.message.timestamp);
+                        chatInput.value = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending chat message:', error);
+                });
+            }
+            
+            sendChatBtn.addEventListener('click', sendChatMessage);
+            chatInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    sendChatMessage();
+                }
+            });
+        }
+        
+        // Add chat message to the UI
+        function addChatMessage(username, content, timestamp) {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            
+            const isCurrentUser = username === currentUser;
+            messageEl.className = `message ${isCurrentUser ? 'message-self' : 'message-other'}`;
+            
+            const time = new Date(timestamp);
+            const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageEl.innerHTML = `
+                <div class="message-header">
+                    <span class="font-medium">${isCurrentUser ? 'You' : username}</span>
+                    <span class="text-gray-500">${timeStr}</span>
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+            
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Copy collaboration link functionality
+        document.getElementById('copy-link-btn').addEventListener('click', function() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(function() {
+                alert('Collaboration link copied to clipboard!');
+            }, function() {
+                alert('Failed to copy link. Please copy the URL from your browser address bar.');
+            });
+        });
+        
+        // Get cookie for CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // Initialize everything
+        function init() {
+            initParticipantCursors();
+            setupChat();
+            
+            // Set up editor change and cursor move events
+            editor.on('change', function() {
+                sendUpdate();
+            });
+            
+            editor.on('cursorActivity', function() {
+                sendUpdate();
+            });
+            
+            // Start periodic updates
+            updateInterval = setInterval(sendUpdate, 3000);
+            
+            // Simulate some chat messages for testing
+            setTimeout(function() {
+                addChatMessage('System', 'The collaboration session has started.', new Date().toISOString());
+            }, 1000);
+        }
+        
+        // Start everything
+        init();
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            clearInterval(updateInterval);
+        });
+    });
 </script>
-{% endblock %} 
+{% endblock %}

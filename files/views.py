@@ -4,12 +4,14 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant
 from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm, CommentForm, CollaborationSessionForm
 import os
 from django.urls import reverse
 from django.utils import timezone
 from datetime import timedelta
+import json
+import uuid
 
 @login_required
 def file_list(request):
@@ -966,43 +968,40 @@ def edit_comment(request, comment_id):
 
 @login_required
 def start_collaboration(request, file_id):
-    """Start a new collaboration session on a file"""
     file = get_object_or_404(FileItem, id=file_id)
     
-    # Check if user has edit access to the file
-    has_edit_access = (
-        file.user == request.user or 
-        SharedFile.objects.filter(file=file, shared_with=request.user, access_level='edit').exists()
-    )
-    
-    if not has_edit_access:
-        messages.error(request, "You don't have permission to start a collaboration session on this file.")
-        return redirect('files:file_detail', file_id=file.id)
+    # Check if user has permission to edit this file
+    if file.user != request.user and not SharedFile.objects.filter(
+            file=file, shared_with=request.user, access_level__in=['edit']).exists():
+        messages.error(request, "You don't have permission to collaborate on this file.")
+        return redirect('files:file_detail', file_id=file_id)
     
     # Check if there's already an active session
     active_session = CollaborationSession.objects.filter(file=file, active=True).first()
-    
     if active_session:
-        # Join existing session
-        active_session.add_participant(request.user)
         return redirect('files:join_collaboration', session_id=active_session.id)
     
-    # Create new session
     if request.method == 'POST':
-        form = CollaborationSessionForm(request.POST)
-        if form.is_valid():
-            session = form.save(commit=True, file=file, user=request.user)
-            messages.success(request, "Collaboration session started!")
-            return redirect('files:join_collaboration', session_id=session.id)
-    else:
-        form = CollaborationSessionForm()
+        # Create new session
+        session = CollaborationSession()
+        session.file = file
+        session.started_by = request.user
+        session.content = file.content if hasattr(file, 'content') else ""
+        session.save()
+        
+        # Add creator as first participant
+        CollaborationParticipant.objects.create(
+            session=session,
+            user=request.user,
+            is_active=True
+        )
+        
+        messages.success(request, "Collaboration session started successfully.")
+        return redirect('files:join_collaboration', session_id=session.id)
     
-    context = {
-        'form': form,
-        'file': file,
-    }
-    
-    return render(request, 'files/start_collaboration.html', context)
+    return render(request, 'files/start_collaboration.html', {
+        'file': file
+    })
 
 @login_required
 def join_collaboration(request, session_id):
@@ -1027,18 +1026,29 @@ def join_collaboration(request, session_id):
         return redirect('files:file_list')
     
     # Add user as participant if not already
-    session.add_participant(request.user)
+    participant, created = CollaborationParticipant.objects.get_or_create(
+        session=session,
+        user=request.user,
+        defaults={'is_active': True}
+    )
     
-    # Get all participants
-    participants = session.participants.all()
+    if not participant.is_active:
+        participant.is_active = True
+        participant.save()
     
-    context = {
+    # Get all active participants
+    active_participants = CollaborationParticipant.objects.filter(
+        session=session,
+        is_active=True
+    ).select_related('user')
+    
+    return render(request, 'files/collaboration_session.html', {
         'session': session,
         'file': file,
-        'participants': participants,
-    }
-    
-    return render(request, 'files/collaboration_session.html', context)
+        'participants': active_participants,
+        'current_user': request.user,
+        'can_end': file.user == request.user or session.started_by == request.user
+    })
 
 @login_required
 def end_collaboration(request, session_id):
@@ -1046,7 +1056,7 @@ def end_collaboration(request, session_id):
     session = get_object_or_404(CollaborationSession, id=session_id)
     
     # Security check: only the session creator or file owner can end the session
-    if session.created_by != request.user and session.file.user != request.user:
+    if session.started_by != request.user and session.file.user != request.user:
         messages.error(request, "You don't have permission to end this collaboration session.")
         return redirect('files:join_collaboration', session_id=session.id)
     
@@ -1060,3 +1070,216 @@ def end_collaboration(request, session_id):
     }
     
     return render(request, 'files/end_collaboration.html', context)
+
+@login_required
+def update_collaboration(request, session_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+    
+    # Check if request is AJAX by examining content type or accept headers
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json'
+    
+    session = get_object_or_404(CollaborationSession, id=session_id, active=True)
+    file = session.file
+    
+    # Check if user has permission to edit this file
+    if file.user != request.user and not SharedFile.objects.filter(
+            file=file, shared_with=request.user, access_level='edit').exists():
+        return JsonResponse({
+            'status': 'error',
+            'message': "You don't have permission to edit this file."
+        })
+    
+    try:
+        # Handle both form data and JSON data
+        if is_ajax and request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+        
+        if 'content' in data:
+            session.content = data['content']
+            session.save()
+        
+        if 'cursor_position' in data:
+            participant, created = CollaborationParticipant.objects.get_or_create(
+                session=session,
+                user=request.user,
+                defaults={'is_active': True}
+            )
+            
+            # Update cursor position
+            if isinstance(data['cursor_position'], dict):
+                cursor_position = data['cursor_position']
+            else:
+                cursor_position = json.loads(data['cursor_position'])
+                
+            participant.cursor_position = cursor_position
+            participant.last_active = timezone.now()
+            participant.save()
+        
+        # Get updated participant info
+        active_participants = CollaborationParticipant.objects.filter(
+            session=session,
+            is_active=True
+        ).select_related('user')
+        
+        participants_data = []
+        for p in active_participants:
+            if p.user != request.user:  # Don't include current user
+                participants_data.append({
+                    'username': p.user.username,
+                    'cursor_position': p.cursor_position,
+                    'last_active': p.last_active.isoformat() if p.last_active else None
+                })
+        
+        return JsonResponse({
+            'status': 'success',
+            'participants': participants_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        })
+
+@login_required
+def send_chat_message(request, session_id):
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+    
+    # Check if request is AJAX by examining content type or accept headers
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.content_type == 'application/json'
+    
+    session = get_object_or_404(CollaborationSession, id=session_id, active=True)
+    
+    try:
+        # Handle both form data and JSON data
+        if is_ajax and request.content_type == 'application/json':
+            data = json.loads(request.body)
+        else:
+            data = request.POST
+            
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return JsonResponse({'status': 'error', 'message': 'Message cannot be empty'})
+        
+        # In a real implementation, you would save this to a ChatMessage model
+        # For now, we'll just echo it back for the frontend to handle
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': {
+                'id': str(uuid.uuid4()),  # Generate a temporary ID
+                'user': request.user.username,
+                'content': message,
+                'timestamp': timezone.now().isoformat()
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        })
+
+@login_required
+def view_comments(request, file_id):
+    file = get_object_or_404(FileItem, id=file_id)
+    
+    # Check if user has permission to view this file
+    if file.user != request.user and not SharedFile.objects.filter(
+            file=file, shared_with=request.user).exists():
+        messages.error(request, "You don't have permission to view this file.")
+        return redirect('files:dashboard')
+    
+    # Get top-level comments (no parent)
+    comments = Comment.objects.filter(
+        file=file,
+        parent=None
+    ).order_by('-created_at')
+    
+    # Form for adding new comments
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            comment = form.save(commit=False)
+            comment.file = file
+            comment.user = request.user
+            comment.save()
+            messages.success(request, "Comment added successfully.")
+            return redirect('files:view_comments', file_id=file_id)
+    else:
+        form = CommentForm()
+    
+    return render(request, 'files/comments.html', {
+        'file': file,
+        'comments': comments,
+        'form': form
+    })
+
+@login_required
+def add_reply(request, comment_id):
+    parent_comment = get_object_or_404(Comment, id=comment_id)
+    file = parent_comment.file
+    
+    # Check if user has permission to view this file
+    if file.user != request.user and not SharedFile.objects.filter(
+            file=file, shared_with=request.user).exists():
+        messages.error(request, "You don't have permission to view this file.")
+        return redirect('files:dashboard')
+    
+    if request.method == 'POST':
+        form = CommentForm(request.POST)
+        if form.is_valid():
+            reply = form.save(commit=False)
+            reply.file = file
+            reply.user = request.user
+            reply.parent = parent_comment
+            reply.save()
+            messages.success(request, "Reply added successfully.")
+    
+    return redirect('files:view_comments', file_id=file.id)
+
+@login_required
+def delete_comment(request, comment_id):
+    comment = get_object_or_404(Comment, id=comment_id)
+    file = comment.file
+    
+    # Check if user has permission to delete this comment
+    if comment.user != request.user and file.user != request.user:
+        messages.error(request, "You don't have permission to delete this comment.")
+        return redirect('files:view_comments', file_id=file.id)
+    
+    if request.method == 'POST':
+        comment.delete()
+        messages.success(request, "Comment deleted successfully.")
+    
+    return redirect('files:view_comments', file_id=file.id)
+
+@login_required
+def edit_comment(request, comment_id):
+    comment = get_object_or_404(Comment, id=comment_id)
+    file = comment.file
+    
+    # Check if user has permission to edit this comment
+    if comment.user != request.user:
+        messages.error(request, "You don't have permission to edit this comment.")
+        return redirect('files:view_comments', file_id=file.id)
+    
+    if request.method == 'POST':
+        form = CommentForm(request.POST, instance=comment)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Comment updated successfully.")
+            return redirect('files:view_comments', file_id=file.id)
+    else:
+        form = CommentForm(instance=comment)
+    
+    return render(request, 'files/edit_comment.html', {
+        'form': form,
+        'comment': comment,
+        'file': file
+    })

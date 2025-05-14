@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Start Collaboration on {{ file.name }}{% endblock %}
+{% block title %}Start Collaboration - {{ file.name }}{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
@@ -21,28 +21,29 @@
     </div>
     {% endif %}
 
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h1 class="text-2xl font-bold mb-4">Start Collaboration Session</h1>
-        <p class="text-gray-600 mb-4">
-            You are about to start a real-time collaboration session for the file <strong>{{ file.name }}</strong>.
-        </p>
-        <p class="mb-4">
-            This will allow you and other users with access to work on this file together in real-time.
-            Any changes made during the collaboration session will be saved as a new version of the file.
-        </p>
-        <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 mb-6">
-            <p><i class="fas fa-info-circle mr-2"></i> You can invite other users to join by sharing the collaboration link once the session starts.</p>
-        </div>
-    </div>
-
     <div class="bg-white rounded-lg shadow-md p-6">
-        <h2 class="text-xl font-semibold mb-4">Collaboration Options</h2>
+        <h1 class="text-2xl font-bold mb-4">Start Collaboration Session</h1>
+        <p class="text-gray-600 mb-6">
+            You are about to start a collaboration session for <strong>{{ file.name }}</strong>.
+            Other users with access to this file will be able to join this session and edit the file together in real-time.
+        </p>
+        
+        <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 mb-6">
+            <p>
+                <i class="fas fa-info-circle mr-2"></i> 
+                <strong>Info:</strong> Once you start the session, you can share the collaboration link with other users.
+            </p>
+        </div>
+
         <form method="post" action="{% url 'files:start_collaboration' file_id=file.id %}">
             {% csrf_token %}
             {{ form.as_p }}
-            <div class="flex justify-end mt-6">
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                    <i class="fas fa-play-circle mr-2"></i> Start Collaboration
+            <div class="flex justify-end mt-6 space-x-4">
+                <a href="{% url 'files:file_detail' file_id=file.id %}" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2">
+                    Cancel
+                </a>
+                <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    <i class="fas fa-play-circle mr-2"></i> Start Session
                 </button>
             </div>
         </form>

@@ -368,10 +368,11 @@ class Comment(models.Model):
 class CollaborationSession(models.Model):
     """Model for tracking real-time collaboration sessions"""
     file = models.ForeignKey(FileItem, on_delete=models.CASCADE, related_name='collaboration_sessions')
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_sessions')
+    started_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_sessions')
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
     ended_at = models.DateTimeField(null=True, blank=True)
+    content = models.TextField(blank=True, null=True)
     
     def __str__(self):
         return f"Collaboration on {self.file.title}"
@@ -384,8 +385,15 @@ class CollaborationSession(models.Model):
     
     def add_participant(self, user):
         """Add a participant to the collaboration session"""
-        if not CollaborationParticipant.objects.filter(session=self, user=user).exists():
-            CollaborationParticipant.objects.create(session=self, user=user)
+        participant, created = CollaborationParticipant.objects.get_or_create(
+            session=self, 
+            user=user,
+            defaults={'is_active': True}
+        )
+        
+        if not created and not participant.is_active:
+            participant.is_active = True
+            participant.save()
 
 class CollaborationParticipant(models.Model):
     """Model for tracking participants in a collaboration session"""
@@ -393,6 +401,8 @@ class CollaborationParticipant(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collaboration_sessions')
     joined_at = models.DateTimeField(default=timezone.now)
     last_active = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    cursor_position = models.JSONField(null=True, blank=True)
     
     class Meta:
         unique_together = ('session', 'user')

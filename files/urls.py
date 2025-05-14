@@ -63,4 +63,26 @@ urlpatterns = [
     path('<int:file_id>/collaborate/', views.start_collaboration, name='start_collaboration'),
     path('collaboration/<int:session_id>/join/', views.join_collaboration, name='join_collaboration'),
     path('collaboration/<int:session_id>/end/', views.end_collaboration, name='end_collaboration'),
+
+    # Collaboration URLs
+    path('file/<uuid:file_id>/start-collaboration/', views.start_collaboration, name='start_collaboration'),
+    path('file/<int:file_id>/start-collaboration/', views.start_collaboration, name='start_collaboration'),
+    path('collaboration/<uuid:session_id>/join/', views.join_collaboration, name='join_collaboration'),
+    path('collaboration/<int:session_id>/join/', views.join_collaboration, name='join_collaboration'),
+    path('collaboration/<uuid:session_id>/end/', views.end_collaboration, name='end_collaboration'),
+    path('collaboration/<int:session_id>/end/', views.end_collaboration, name='end_collaboration'),
+    path('collaboration/<uuid:session_id>/update/', views.update_collaboration, name='update_collaboration'),
+    path('collaboration/<int:session_id>/update/', views.update_collaboration, name='update_collaboration'),
+    path('collaboration/<uuid:session_id>/chat/', views.send_chat_message, name='send_chat_message'),
+    path('collaboration/<int:session_id>/chat/', views.send_chat_message, name='send_chat_message'),
+    
+    # Comment URLs
+    path('file/<uuid:file_id>/comments/', views.view_comments, name='view_comments'),
+    path('file/<int:file_id>/comments/', views.view_comments, name='view_comments'),
+    path('comment/<uuid:comment_id>/reply/', views.add_reply, name='add_reply'),
+    path('comment/<int:comment_id>/reply/', views.add_reply, name='add_reply'),
+    path('comment/<uuid:comment_id>/edit/', views.edit_comment, name='edit_comment'),
+    path('comment/<int:comment_id>/edit/', views.edit_comment, name='edit_comment'),
+    path('comment/<uuid:comment_id>/delete/', views.delete_comment, name='delete_comment'),
+    path('comment/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
 ] 
