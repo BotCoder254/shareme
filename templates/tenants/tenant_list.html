@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Organizations - CloudVault Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 fade-in">
+            CloudVault Organizations
+        </h1>
+        <p class="mt-4 text-lg text-gray-500 fade-in">
+            Manage all tenant organizations on your CloudVault instance.
+        </p>
+    </div>
+    
+    <div class="bg-white shadow-md rounded-lg p-6 fade-in">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-semibold text-gray-800">All Organizations</h2>
+            <a href="{% url 'tenant_signup' %}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-plus mr-2"></i>
+                Create New
+            </a>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Schema
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Domain
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for tenant in tenants %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                {% if tenant.logo %}
+                                <div class="flex-shrink-0 h-10 w-10">
+                                    <img class="h-10 w-10 rounded-full" src="{{ tenant.logo.url }}" alt="{{ tenant.name }} Logo">
+                                </div>
+                                {% else %}
+                                <div class="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
+                                    <span class="text-primary-600 font-medium text-lg">{{ tenant.name|first|upper }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ tenant.name }}
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        {% if tenant.description %}
+                                        {{ tenant.description|truncatechars:40 }}
+                                        {% else %}
+                                        No description
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ tenant.schema_name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% with domain=tenant.domains.first %}
+                            {% if domain %}
+                            <a href="http://{{ domain.domain }}" target="_blank" class="text-sm text-primary-600 hover:text-primary-900">
+                                {{ domain.domain }}
+                                <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                            </a>
+                            {% else %}
+                            <span class="text-sm text-gray-500">No domain</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ tenant.created_on }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if tenant.on_trial %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Trial
+                            </span>
+                            {% elif tenant.paid_until and tenant.paid_until < now %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Expired
+                            </span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Active
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <a href="{% url 'tenant_detail' tenant_id=tenant.id %}" class="text-primary-600 hover:text-primary-900 mr-3">
+                                <i class="fas fa-eye"></i>
+                                View
+                            </a>
+                            <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="text-gray-600 hover:text-gray-900">
+                                <i class="fas fa-edit"></i>
+                                Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                            <p class="text-base">No organizations found.</p>
+                            <p class="mt-2">
+                                <a href="{% url 'tenant_signup' %}" class="text-primary-600 hover:text-primary-900">
+                                    <i class="fas fa-plus-circle mr-1"></i>
+                                    Create your first organization
+                                </a>
+                            </p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

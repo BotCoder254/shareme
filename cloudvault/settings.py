@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-=i!aoglwqd(_12@b&@&bvvi9($e87zw++0+^o3v^8vr(@f9h)w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -44,7 +44,12 @@ INSTALLED_APPS = [
     'accounts',
     'files',
     'notifications',
+    'tenants',
 ]
+
+# Comment out tenant settings temporarily
+# TENANT_MODEL = "tenants.Tenant"
+# TENANT_DOMAIN_MODEL = "tenants.Domain"
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -58,6 +63,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'cloudvault.urls'
+PUBLIC_SCHEMA_URLCONF = 'cloudvault.public_urls'
 
 TEMPLATES = [
     {
@@ -70,6 +76,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'tenants.context_processors.tenant_context',
             ],
         },
     },
@@ -87,6 +94,8 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+DATABASE_ROUTERS = []
 
 
 # Password validation

@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Organization Created Successfully - CloudVault{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+    <div class="text-center">
+        <i class="fas fa-check-circle text-green-500 text-6xl mb-4"></i>
+        
+        <h1 class="text-3xl font-extrabold text-gray-900 sm:text-4xl fade-in">
+            Organization Created Successfully!
+        </h1>
+        
+        <div class="mt-8 bg-green-50 border border-green-100 rounded-lg p-6 fade-in">
+            <p class="text-lg text-gray-700 mb-4">
+                Your CloudVault organization has been created and is ready for use.
+            </p>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="mb-4 p-4 bg-white rounded-lg shadow-sm">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <div class="mt-6 bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <h4 class="font-semibold text-blue-800 mb-2">Access Your Organization</h4>
+                <p class="text-gray-600 mb-2">
+                    Your admin account has been created. You can now login with your admin credentials.
+                </p>
+                <div class="bg-white p-3 rounded-md mt-2 inline-block text-left">
+                    <p class="text-sm font-medium text-gray-900">Use these credentials to login:</p>
+                    <ul class="list-disc pl-5 mt-1 text-sm text-gray-700">
+                        <li>Username: <span class="font-mono bg-gray-100 px-1 rounded">Your chosen admin username</span></li>
+                        <li>Password: <span class="font-mono bg-gray-100 px-1 rounded">Your chosen password</span></li>
+                    </ul>
+                </div>
+                <p class="text-gray-600 mt-3">
+                    <strong>Note:</strong> Currently running in development mode with SQLite, so domain separation 
+                    is simulated. In production, each tenant would have its own isolated database schema.
+                </p>
+            </div>
+            
+            <div class="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{% url 'core:home' %}" class="inline-flex items-center px-5 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    <i class="fas fa-home mr-2"></i> Return to Home
+                </a>
+                <a href="/accounts/login/" class="inline-flex items-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Login to Your Account
+                </a>
+            </div>
+        </div>
+        
+        <div class="mt-8 border-t border-gray-200 pt-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">What's Next?</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                    <div class="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-sign-in-alt"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Log In</h3>
+                    <p class="text-gray-500">
+                        Use your admin credentials to log in to your new organization instance.
+                    </p>
+                </div>
+                
+                <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                    <div class="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Invite Users</h3>
+                    <p class="text-gray-500">
+                        Add team members to your organization to collaborate on files.
+                    </p>
+                </div>
+                
+                <div class="bg-white p-5 rounded-lg shadow-sm border border-gray-100">
+                    <div class="w-12 h-12 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Upload Files</h3>
+                    <p class="text-gray-500">
+                        Start uploading and organizing your files in your secure instance.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

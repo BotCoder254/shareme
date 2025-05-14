@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 app_name = 'core'
@@ -10,4 +10,5 @@ urlpatterns = [
     path('about/', views.about, name='about'),
     path('features/', views.features, name='features'),
     path('contact/', views.contact, name='contact'),
+    path('tenants/', include('tenants.urls')),
 ] 

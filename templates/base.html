@@ -91,6 +91,9 @@
                         <a href="{% url 'core:home' %}" class="text-primary-600 font-bold text-xl flex items-center">
                             <i class="fas fa-cloud mr-2 text-2xl"></i>
                             CloudVault
+                            {% if not is_public_schema and current_tenant %}
+                            <span class="ml-2 bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-full">{{ current_tenant.name }}</span>
+                            {% endif %}
                         </a>
                     </div>
                     

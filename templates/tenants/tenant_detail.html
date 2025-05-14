@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tenant.name }} - Organization Details - CloudVault Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+    <div class="mb-4">
+        <a href="{% url 'tenant_list' %}" class="text-primary-600 hover:text-primary-900 flex items-center text-sm">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Organizations
+        </a>
+    </div>
+    
+    <div class="bg-white shadow-md rounded-lg overflow-hidden fade-in">
+        <div class="px-6 py-5 border-b border-gray-200 bg-primary-50 flex justify-between items-center">
+            <div class="flex items-center">
+                {% if tenant.logo %}
+                <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }} Logo" class="h-16 w-16 rounded-full object-cover border-2 border-white shadow-sm">
+                {% else %}
+                <div class="h-16 w-16 rounded-full bg-primary-500 flex items-center justify-center text-white text-2xl font-bold border-2 border-white shadow-sm">
+                    {{ tenant.name|first|upper }}
+                </div>
+                {% endif %}
+                <div class="ml-5">
+                    <h1 class="text-2xl font-bold text-gray-900">{{ tenant.name }}</h1>
+                    <div class="flex items-center mt-1">
+                        <span class="text-sm text-gray-600">Schema: {{ tenant.schema_name }}</span>
+                        <span class="mx-2">•</span>
+                        <span class="text-sm text-gray-600">Created: {{ tenant.created_on }}</span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    <i class="fas fa-edit mr-2"></i> Edit Organization
+                </a>
+            </div>
+        </div>
+        
+        <div class="px-6 py-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-3">Organization Details</h3>
+                    
+                    <div class="bg-gray-50 rounded-lg p-5">
+                        {% if tenant.description %}
+                        <div class="mb-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-1">Description</h4>
+                            <p class="text-gray-600">{{ tenant.description }}</p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-1">Status</h4>
+                                <p>
+                                    {% if tenant.on_trial %}
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        Trial
+                                    </span>
+                                    {% elif tenant.paid_until and tenant.paid_until < now %}
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        Expired
+                                    </span>
+                                    {% else %}
+                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Active
+                                    </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-1">Paid Until</h4>
+                                <p class="text-gray-600">
+                                    {% if tenant.paid_until %}
+                                    {{ tenant.paid_until }}
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            {% if tenant.email %}
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-1">Email</h4>
+                                <p class="text-gray-600">{{ tenant.email }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if tenant.phone %}
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-1">Phone</h4>
+                                <p class="text-gray-600">{{ tenant.phone }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if tenant.website %}
+                            <div>
+                                <h4 class="text-sm font-medium text-gray-700 mb-1">Website</h4>
+                                <p class="text-gray-600">
+                                    <a href="{{ tenant.website }}" target="_blank" class="text-primary-600 hover:text-primary-900">
+                                        {{ tenant.website }}
+                                        <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                                    </a>
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if tenant.address %}
+                        <div class="mt-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-1">Address</h4>
+                            <p class="text-gray-600">{{ tenant.address }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-3">Domains</h3>
+                    
+                    <div class="bg-gray-50 rounded-lg p-5">
+                        <div class="overflow-hidden shadow-sm border border-gray-200 rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Domain
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Primary
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    {% for domain in domains %}
+                                    <tr>
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            <a href="http://{{ domain.domain }}" target="_blank" class="text-primary-600 hover:text-primary-900">
+                                                {{ domain.domain }}
+                                                <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                                            </a>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap">
+                                            {% if domain.is_primary %}
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                Primary
+                                            </span>
+                                            {% else %}
+                                            <span class="text-gray-500">No</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-sm">
+                                            <a href="/admin/tenants/domain/{{ domain.id }}/change/" class="text-gray-600 hover:text-gray-900">
+                                                <i class="fas fa-edit"></i>
+                                                Edit
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-4 text-center text-gray-500">
+                                            No domains configured
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-4 flex justify-end">
+                            <a href="/admin/tenants/domain/add/?tenant={{ tenant.id }}" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-plus mr-2"></i>
+                                Add Domain
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 pt-5 border-t border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-medium text-gray-900">Quick Actions</h3>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <a href="{% with domain=tenant.domains.first %}{% if domain %}http://{{ domain.domain }}{% else %}#{% endif %}{% endwith %}" 
+                       target="_blank"
+                       class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-primary-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                <i class="fas fa-external-link-alt text-primary-600"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <span class="absolute inset-0" aria-hidden="true"></span>
+                            <p class="text-sm font-medium text-gray-900">
+                                Visit Tenant
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                Open the tenant's CloudVault instance
+                            </p>
+                        </div>
+                    </a>
+                    
+                    <a href="/admin/tenants/tenant/{{ tenant.id }}/change/" 
+                       class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-primary-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <i class="fas fa-edit text-blue-600"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <span class="absolute inset-0" aria-hidden="true"></span>
+                            <p class="text-sm font-medium text-gray-900">
+                                Edit Details
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                Update organization information
+                            </p>
+                        </div>
+                    </a>
+                    
+                    <div 
+                       class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <i class="fas fa-user-shield text-yellow-600"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900">
+                                Tenant Users
+                            </p>
+                            <p class="text-sm text-gray-500">
+                                Users are managed within the tenant instance
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
