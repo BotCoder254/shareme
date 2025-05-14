@@ -1,5 +1,5 @@
 from django import forms
-from .models import FileItem, FileCategory, Folder, FileShareLink, Comment, CollaborationSession
+from .models import FileItem, FileCategory, Folder, FileShareLink, Comment, CollaborationSession, SharedFile, SharedFolder
 from django.utils import timezone
 import os
 
@@ -169,3 +169,117 @@ class CollaborationSessionForm(forms.ModelForm):
             instance.add_participant(user)
         
         return instance 
+
+class ShareFileForm(forms.ModelForm):
+    """Form for sharing a file with another user with expiry date"""
+    
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Enter username'}),
+        help_text="Username of the person you want to share with"
+    )
+    
+    access_level = forms.ChoiceField(
+        choices=[
+            ('view', 'View only'),
+            ('edit', 'Can edit'),
+            ('comment', 'Can comment')
+        ],
+        initial='view',
+        required=True,
+        help_text="What can they do with this file?"
+    )
+    
+    expires_in = forms.ChoiceField(
+        choices=[
+            ('never', 'Never expires'),
+            ('1d', '1 day'),
+            ('7d', '7 days'),
+            ('30d', '30 days'),
+            ('custom', 'Custom date')
+        ],
+        initial='never',
+        required=True,
+        help_text="Set when this share should expire"
+    )
+    
+    custom_expiry_date = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        help_text="Custom expiration date and time"
+    )
+    
+    class Meta:
+        model = SharedFile
+        fields = ['access_level']
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        expires_in = cleaned_data.get('expires_in')
+        custom_expiry_date = cleaned_data.get('custom_expiry_date')
+        
+        # Validate custom expiry date if selected
+        if expires_in == 'custom' and not custom_expiry_date:
+            self.add_error('custom_expiry_date', "Please provide a custom expiration date")
+        elif expires_in == 'custom' and custom_expiry_date <= timezone.now():
+            self.add_error('custom_expiry_date', "The expiration date must be in the future")
+            
+        return cleaned_data
+
+class ShareFolderForm(forms.ModelForm):
+    """Form for sharing a folder with another user with expiry date"""
+    
+    username = forms.CharField(
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Enter username'}),
+        help_text="Username of the person you want to share with"
+    )
+    
+    access_level = forms.ChoiceField(
+        choices=[
+            ('view', 'View only'),
+            ('edit', 'Can edit'),
+            ('comment', 'Can comment')
+        ],
+        initial='view',
+        required=True,
+        help_text="What can they do with this folder?"
+    )
+    
+    expires_in = forms.ChoiceField(
+        choices=[
+            ('never', 'Never expires'),
+            ('1d', '1 day'),
+            ('7d', '7 days'),
+            ('30d', '30 days'),
+            ('custom', 'Custom date')
+        ],
+        initial='never',
+        required=True,
+        help_text="Set when this share should expire"
+    )
+    
+    custom_expiry_date = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        help_text="Custom expiration date and time"
+    )
+    
+    class Meta:
+        model = SharedFolder
+        fields = ['access_level']
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        expires_in = cleaned_data.get('expires_in')
+        custom_expiry_date = cleaned_data.get('custom_expiry_date')
+        
+        # Validate custom expiry date if selected
+        if expires_in == 'custom' and not custom_expiry_date:
+            self.add_error('custom_expiry_date', "Please provide a custom expiration date")
+        elif expires_in == 'custom' and custom_expiry_date <= timezone.now():
+            self.add_error('custom_expiry_date', "The expiration date must be in the future")
+            
+        return cleaned_data 

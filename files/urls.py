@@ -18,6 +18,8 @@ urlpatterns = [
     path('<uuid:file_id>/favorite/', views.file_toggle_favorite, name='file_toggle_favorite'),
     path('<int:file_id>/share/', views.file_share, name='file_share'),
     path('<uuid:file_id>/share/', views.file_share, name='file_share'),
+    path('<int:file_id>/unshare/', views.file_unshare, name='file_unshare'),
+    path('<uuid:file_id>/unshare/', views.file_unshare, name='file_unshare'),
     path('shared/', views.shared_files, name='shared_files'),
     
     # Folder related URLs

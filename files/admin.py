@@ -1,8 +1,11 @@
 from django.contrib import admin
-from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion
+from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant
 from django.utils.html import format_html
 from django.utils import timezone
-from django.urls import reverse
+from django.urls import reverse, path
+from django.http import HttpResponseRedirect
+from django.contrib import messages
+from django.template.response import TemplateResponse
 
 class FolderHierarchyFilter(admin.SimpleListFilter):
     title = 'folder hierarchy'
@@ -319,3 +322,48 @@ class FileShareLinkAdmin(admin.ModelAdmin):
         queryset.filter(expires_at__lt=timezone.now()).delete()
         self.message_user(request, f"Deleted {expired} expired links.")
     delete_expired.short_description = "Delete expired links"
+
+# Add admin site header, title, and index title
+admin.site.site_header = 'CloudVault Administration'
+admin.site.site_title = 'CloudVault Admin'
+admin.site.index_title = 'Administration'
+
+# Register Collaboration models
+@admin.register(CollaborationSession)
+class CollaborationSessionAdmin(admin.ModelAdmin):
+    list_display = ('file', 'started_by', 'active', 'created_at', 'ended_at')
+    list_filter = ('active', 'created_at')
+    search_fields = ('file__title', 'started_by__username')
+    readonly_fields = ('created_at', 'ended_at')
+    actions = ['end_sessions']
+    
+    def end_sessions(self, request, queryset):
+        count = queryset.filter(active=True).update(active=False, ended_at=timezone.now())
+        self.message_user(request, f"Ended {count} collaboration sessions.")
+    end_sessions.short_description = "End selected collaboration sessions"
+
+@admin.register(CollaborationParticipant)
+class CollaborationParticipantAdmin(admin.ModelAdmin):
+    list_display = ('user', 'session', 'is_active', 'joined_at', 'last_active')
+    list_filter = ('is_active', 'joined_at')
+    search_fields = ('user__username', 'session__file__title')
+    readonly_fields = ('joined_at', 'last_active')
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'file', 'parent', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'user')
+    search_fields = ('content', 'user__username', 'file__title')
+    readonly_fields = ('created_at', 'updated_at')
+
+# Create an admin action to run the cleanup_expired_shares management command
+def run_cleanup_expired_shares(modeladmin, request, queryset):
+    from django.core.management import call_command
+    call_command('cleanup_expired_shares')
+    modeladmin.message_user(request, "Expired shares cleanup completed successfully!", messages.SUCCESS)
+
+run_cleanup_expired_shares.short_description = "Run cleanup for expired shares"
+
+# Add the action to the appropriate admin models
+SharedFileAdmin.actions += [run_cleanup_expired_shares]
+SharedFolderAdmin.actions += [run_cleanup_expired_shares]

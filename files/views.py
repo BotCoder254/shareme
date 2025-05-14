@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.db.models import Q
 from .models import FileItem, FileCategory, SharedFile, Folder, SharedFolder, FileShareLink, FileVersion, Comment, CollaborationSession, CollaborationParticipant
-from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm, CommentForm, CollaborationSessionForm
+from .forms import FileUploadForm, FileCategoryForm, ShareLinkForm, FolderForm, CommentForm, CollaborationSessionForm, ShareFileForm, ShareFolderForm
 import os
 from django.urls import reverse
 from django.utils import timezone
@@ -345,35 +345,63 @@ def file_share(request, file_id):
     file = get_object_or_404(FileItem, id=file_id, user=request.user)
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        access_level = request.POST.get('access_level', 'view')
-        
-        try:
-            user_to_share_with = User.objects.get(username=username)
+        form = ShareFileForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            access_level = form.cleaned_data['access_level']
+            expires_in = form.cleaned_data['expires_in']
+            custom_expiry_date = form.cleaned_data['custom_expiry_date']
             
-            # Don't allow sharing with self
-            if user_to_share_with == request.user:
-                messages.error(request, "You cannot share a file with yourself.")
-                return redirect('files:file_detail', file_id=file.id)
-            
-            # Check if already shared
-            if SharedFile.objects.filter(file=file, shared_with=user_to_share_with).exists():
-                messages.info(request, f"File is already shared with {username}.")
-            else:
-                SharedFile.objects.create(
-                    file=file,
-                    shared_by=request.user,
-                    shared_with=user_to_share_with,
-                    access_level=access_level
-                )
-                messages.success(request, f"File shared with {username} successfully!")
+            try:
+                user_to_share_with = User.objects.get(username=username)
                 
-        except User.DoesNotExist:
-            messages.error(request, f"User '{username}' does not exist.")
-        
-        return redirect('files:file_detail', file_id=file.id)
+                # Don't allow sharing with self
+                if user_to_share_with == request.user:
+                    messages.error(request, "You cannot share a file with yourself.")
+                    return redirect('files:file_detail', file_id=file.id)
+                
+                # Check if already shared
+                share_instance = SharedFile.objects.filter(file=file, shared_with=user_to_share_with).first()
+                
+                # Set the expiry date based on selection
+                expires_at = None
+                if expires_in == 'custom':
+                    expires_at = custom_expiry_date
+                elif expires_in != 'never':
+                    # Parse the time period (1d, 7d, 30d)
+                    days = int(expires_in[:-1])
+                    expires_at = timezone.now() + timezone.timedelta(days=days)
+                
+                if share_instance:
+                    # Update existing share
+                    share_instance.access_level = access_level
+                    share_instance.expires_at = expires_at
+                    share_instance.save()
+                    messages.info(request, f"File share updated for {username}.")
+                else:
+                    # Create new share
+                    SharedFile.objects.create(
+                        file=file,
+                        shared_by=request.user,
+                        shared_with=user_to_share_with,
+                        access_level=access_level,
+                        expires_at=expires_at
+                    )
+                    messages.success(request, f"File shared with {username} successfully!")
+                    
+            except User.DoesNotExist:
+                messages.error(request, f"User '{username}' does not exist.")
+            
+            return redirect('files:file_detail', file_id=file.id)
+    else:
+        form = ShareFileForm()
     
-    return redirect('files:file_detail', file_id=file.id)
+    context = {
+        'form': form,
+        'file': file,
+    }
+    
+    return render(request, 'files/file_share.html', context)
 
 @login_required
 def file_download(request, file_id):
@@ -404,10 +432,21 @@ def file_download(request, file_id):
 @login_required
 def shared_files(request):
     """View to list files shared with the user"""
-    shared = SharedFile.objects.filter(shared_with=request.user)
+    # Get shared files excluding expired ones
+    shared = SharedFile.objects.filter(shared_with=request.user).filter(
+        Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now())
+    )
+    
+    # Get count of expired shares for notification
+    expired_count = SharedFile.objects.filter(
+        shared_with=request.user,
+        expires_at__isnull=False, 
+        expires_at__lt=timezone.now()
+    ).count()
     
     context = {
         'shared_files': shared,
+        'expired_count': expired_count,
     }
     
     return render(request, 'files/shared_files.html', context)
@@ -453,35 +492,59 @@ def folder_share(request, folder_id):
     folder = get_object_or_404(Folder, id=folder_id, user=request.user)
     
     if request.method == 'POST':
-        username = request.POST.get('username')
-        access_level = request.POST.get('access_level', 'view')
-        
-        try:
-            user_to_share_with = User.objects.get(username=username)
+        form = ShareFolderForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data['username']
+            access_level = form.cleaned_data['access_level']
+            expires_in = form.cleaned_data['expires_in']
+            custom_expiry_date = form.cleaned_data['custom_expiry_date']
             
-            # Don't allow sharing with self
-            if user_to_share_with == request.user:
-                messages.error(request, "You cannot share a folder with yourself.")
-                return redirect('files:file_list')
-            
-            # Check if already shared
-            if SharedFolder.objects.filter(folder=folder, shared_with=user_to_share_with).exists():
-                messages.info(request, f"Folder is already shared with {username}.")
-            else:
-                SharedFolder.objects.create(
-                    folder=folder,
-                    shared_by=request.user,
-                    shared_with=user_to_share_with,
-                    access_level=access_level
-                )
-                messages.success(request, f"Folder shared with {username} successfully!")
+            try:
+                user_to_share_with = User.objects.get(username=username)
                 
-        except User.DoesNotExist:
-            messages.error(request, f"User '{username}' does not exist.")
-        
-        return redirect('files:file_list')
+                # Don't allow sharing with self
+                if user_to_share_with == request.user:
+                    messages.error(request, "You cannot share a folder with yourself.")
+                    return redirect('files:file_list')
+                
+                # Check if already shared
+                share_instance = SharedFolder.objects.filter(folder=folder, shared_with=user_to_share_with).first()
+                
+                # Set the expiry date based on selection
+                expires_at = None
+                if expires_in == 'custom':
+                    expires_at = custom_expiry_date
+                elif expires_in != 'never':
+                    # Parse the time period (1d, 7d, 30d)
+                    days = int(expires_in[:-1])
+                    expires_at = timezone.now() + timezone.timedelta(days=days)
+                
+                if share_instance:
+                    # Update existing share
+                    share_instance.access_level = access_level
+                    share_instance.expires_at = expires_at
+                    share_instance.save()
+                    messages.info(request, f"Folder share updated for {username}.")
+                else:
+                    # Create new share
+                    SharedFolder.objects.create(
+                        folder=folder,
+                        shared_by=request.user,
+                        shared_with=user_to_share_with,
+                        access_level=access_level,
+                        expires_at=expires_at
+                    )
+                    messages.success(request, f"Folder shared with {username} successfully!")
+                    
+            except User.DoesNotExist:
+                messages.error(request, f"User '{username}' does not exist.")
+            
+            return redirect('files:file_list')
+    else:
+        form = ShareFolderForm()
     
     context = {
+        'form': form,
         'folder': folder,
     }
     
@@ -1283,3 +1346,38 @@ def edit_comment(request, comment_id):
         'comment': comment,
         'file': file
     })
+
+@login_required
+def file_unshare(request, file_id):
+    """Remove sharing access for a file"""
+    file = get_object_or_404(FileItem, id=file_id, user=request.user)
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        
+        try:
+            user_to_unshare_with = User.objects.get(username=username)
+            
+            # Check if file is shared with this user
+            shared_file = SharedFile.objects.filter(file=file, shared_with=user_to_unshare_with)
+            
+            if shared_file.exists():
+                shared_file.delete()
+                messages.success(request, f"File access for {username} has been removed.")
+            else:
+                messages.info(request, f"File is not shared with {username}.")
+                
+        except User.DoesNotExist:
+            messages.error(request, f"User '{username}' does not exist.")
+        
+        return redirect('files:file_share', file_id=file.id)
+    
+    # Get all users this file is shared with
+    shared_with = SharedFile.objects.filter(file=file)
+    
+    context = {
+        'file': file,
+        'shared_with': shared_with,
+    }
+    
+    return render(request, 'files/file_unshare.html', context)

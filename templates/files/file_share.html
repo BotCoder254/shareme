@@ -1,29 +1,15 @@
 {% extends 'base.html' %}
 
-{% block title %}Share {{ folder.name }}{% endblock %}
-
-{% block extra_css %}
-<style>
-    /* Ensure consistent form field heights */
-    .form-input {
-        height: 42px;
-    }
-    
-    select.form-input {
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-    }
-</style>
-{% endblock %}
+{% block title %}Share {{ file.title }}{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8 flex items-center justify-between">
         <h1 class="text-2xl font-bold text-gray-900">
-            Share Folder "{{ folder.name }}"
+            Share "{{ file.title }}"
         </h1>
-        <a href="{% url 'files:folder_contents' folder_id=folder.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-            <i class="fas fa-arrow-left mr-2"></i> Back to Folder
+        <a href="{% url 'files:file_detail' file_id=file.id %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            <i class="fas fa-arrow-left mr-2"></i> Back to File
         </a>
     </div>
 
@@ -31,7 +17,7 @@
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Share with a user</h3>
             <div class="mt-2 max-w-xl text-sm text-gray-500">
-                <p>Enter the username of the person you want to share this folder with.</p>
+                <p>Enter the username of the person you want to share this file with.</p>
             </div>
             
             <form method="post" class="mt-5 sm:flex sm:flex-col space-y-5">
@@ -103,7 +89,7 @@
                 </div>
                 
                 <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                    <i class="fas fa-share-alt mr-2"></i> Share Folder
+                    <i class="fas fa-share-alt mr-2"></i> Share File
                 </button>
             </form>
         </div>
@@ -113,14 +99,14 @@
         <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Current Shares</h3>
             <div class="mt-2 max-w-xl text-sm text-gray-500">
-                <p>Users this folder is currently shared with.</p>
+                <p>Users this file is currently shared with.</p>
             </div>
             
             <div class="mt-5">
-                {% if folder.shared_with.all %}
+                {% if file.shared_with.all %}
                 <div class="bg-white shadow overflow-hidden sm:rounded-md">
                     <ul role="list" class="divide-y divide-gray-200">
-                        {% for share in folder.shared_with.all %}
+                        {% for share in file.shared_with.all %}
                         <li>
                             <div class="px-4 py-4 sm:px-6 flex items-center justify-between">
                                 <div class="flex items-center">
@@ -148,7 +134,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <form method="post" action="{% url 'files:folder_unshare' folder_id=folder.id %}">
+                                <form method="post" action="{% url 'files:file_unshare' file_id=file.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="username" value="{{ share.shared_with.username }}">
                                     <button type="submit" class="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
@@ -163,7 +149,7 @@
                 {% else %}
                 <div class="text-center py-4 text-gray-500">
                     <i class="fas fa-share-alt text-2xl mb-2"></i>
-                    <p>This folder is not shared with anyone yet.</p>
+                    <p>This file is not shared with anyone yet.</p>
                 </div>
                 {% endif %}
             </div>

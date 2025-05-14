@@ -281,12 +281,19 @@ class SharedFile(models.Model):
         ('comment', 'Comment'),  # New access level for commenting only
     ], default='view')
     shared_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="When this share expires (optional)")
     
     class Meta:
         unique_together = ('file', 'shared_with')
         
     def __str__(self):
         return f"{self.file.title} shared with {self.shared_with.username}"
+    
+    def is_expired(self):
+        """Check if the share has expired"""
+        if self.expires_at and timezone.now() > self.expires_at:
+            return True
+        return False
 
 class SharedFolder(models.Model):
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name='shared_with')
@@ -298,12 +305,19 @@ class SharedFolder(models.Model):
         ('comment', 'Comment'),  # New access level for commenting only
     ], default='view')
     shared_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="When this share expires (optional)")
     
     class Meta:
         unique_together = ('folder', 'shared_with')
         
     def __str__(self):
         return f"{self.folder.name} shared with {self.shared_with.username}"
+    
+    def is_expired(self):
+        """Check if the share has expired"""
+        if self.expires_at and timezone.now() > self.expires_at:
+            return True
+        return False
 
 class FileShareLink(models.Model):
     """Model for public sharing links with advanced options"""
